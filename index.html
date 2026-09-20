@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mana@viajar | Controle de viagem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #173042;
+        --muted: #70818a;
+        --line: #dce7e8;
+        --paper: #f6faf8;
+        --card: #ffffff;
+        --teal: #177c77;
+        --teal-dark: #0d5f5b;
+        --mint: #dff3e8;
+        --coral: #ef705d;
+        --yellow: #f5c85b;
+        --shadow: 0 20px 50px rgba(24, 61, 63, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: Manrope, sans-serif;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .shell {
+        display: flex;
+        flex-direction: column;
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 30px 34px 70px;
+      }
+      .workspace {
+        order: 2;
+      }
+      .summary {
+        order: 3;
+      }
+      .top-trip {
+        order: 1;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 34px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        color: #fff;
+        background: var(--teal);
+        font-weight: 800;
+        font-size: 20px;
+        box-shadow: 0 9px 18px rgba(23, 124, 119, 0.22);
+      }
+      .brand-name {
+        font-weight: 800;
+        letter-spacing: -0.8px;
+        font-size: 20px;
+      }
+      .brand-name span {
+        color: var(--coral);
+      }
+      .eyebrow {
+        margin: 0 0 7px;
+        color: var(--coral);
+        font-family: "DM Mono", monospace;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1.4px;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+      h1 {
+        max-width: 620px;
+        margin-bottom: 13px;
+        font-size: clamp(32px, 4vw, 56px);
+        line-height: 1.03;
+        letter-spacing: -2.6px;
+      }
+      .intro {
+        max-width: 520px;
+        margin-bottom: 0;
+        color: var(--muted);
+        line-height: 1.65;
+        font-size: 15px;
+      }
+      .period {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 13px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .period strong {
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .period input {
+        width: auto;
+        height: 28px;
+        padding: 0 6px;
+        border: 0;
+        background: transparent;
+        color: var(--ink);
+        font-size: 12px;
+      }
+      .top-actions {
+        display: grid;
+        gap: 10px;
+        justify-items: end;
+      }
+      .history-button {
+        min-height: 40px;
+        padding: 0 15px;
+        border: 1px solid var(--teal);
+        border-radius: 9px;
+        color: var(--teal);
+        background: var(--card);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .history-button:hover {
+        color: #fff;
+        background: var(--teal);
+      }
+      .modal-backdrop {
+        position: fixed;
+        z-index: 10;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(23, 48, 66, 0.48);
+      }
+      .modal-backdrop.open {
+        display: flex;
+      }
+      .history-modal {
+        width: min(920px, 100%);
+        max-height: min(720px, 90vh);
+        overflow: hidden;
+        border-radius: 18px;
+        background: var(--card);
+        box-shadow: 0 25px 80px rgba(23, 48, 66, 0.25);
+      }
+      .history-modal .card-head {
+        align-items: center;
+      }
+      .close-modal {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 50%;
+        color: var(--muted);
+        background: var(--paper);
+        font-size: 20px;
+      }
+      .history-content {
+        max-height: calc(90vh - 100px);
+        overflow: auto;
+        padding: 0 24px 24px;
+      }
+      .history-empty {
+        padding: 35px 10px;
+        color: var(--muted);
+        text-align: center;
+        font-size: 13px;
+      }
+      .history-table td,
+      .history-table th {
+        padding-right: 14px;
+      }
+      .history-table td:last-child,
+      .history-table th:last-child {
+        padding-right: 0;
+      }
+      .history-table tfoot td {
+        border-top: 2px solid var(--line);
+        color: var(--teal);
+        font-weight: 800;
+      }
+      .history-date {
+        color: var(--teal);
+        font-weight: 800;
+      }
+      .save-status {
+        display: block;
+        margin-top: 4px;
+        color: var(--teal);
+        font-size: 10px;
+        text-align: right;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 26px;
+      }
+      .metric {
+        min-height: 132px;
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: 0 8px 25px rgba(30, 69, 66, 0.035);
+      }
+      .metric.primary {
+        color: #fff;
+        border-color: var(--teal);
+        background: var(--teal);
+      }
+      .metric-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 17px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .primary .metric-label {
+        color: #b8dfd7;
+      }
+      .metric-icon {
+        font-size: 18px;
+      }
+      .metric-value {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -1.3px;
+      }
+      .metric-note {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .primary .metric-note {
+        color: #b8dfd7;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.9fr);
+        gap: 22px;
+        align-items: start;
+      }
+      .top-trip {
+        margin-bottom: 26px;
+      }
+      .top-trip .form-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .main-column,
+      .side-column {
+        display: grid;
+        gap: 22px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 22px 24px 18px;
+        border-bottom: 1px solid #edf2f1;
+      }
+      .card-head h2 {
+        margin-bottom: 5px;
+        font-size: 18px;
+        letter-spacing: -0.5px;
+      }
+      .card-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .number {
+        display: grid;
+        place-items: center;
+        flex: 0 0 30px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        color: var(--teal);
+        background: var(--mint);
+        font-family: "DM Mono", monospace;
+        font-size: 12px;
+      }
+      .card-body {
+        padding: 22px 24px 24px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .field {
+        display: grid;
+        gap: 7px;
+      }
+      .field.wide {
+        grid-column: span 2;
+      }
+      label {
+        color: #526870;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      input,
+      select {
+        width: 100%;
+        height: 43px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        outline: none;
+        color: var(--ink);
+        background: #fbfdfc;
+        font-size: 13px;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      input:focus,
+      select:focus {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(23, 124, 119, 0.11);
+      }
+      .money {
+        position: relative;
+      }
+      .money span {
+        position: absolute;
+        left: 12px;
+        top: 13px;
+        color: var(--muted);
+        font-size: 12px;
+        pointer-events: none;
+      }
+      .money input {
+        padding-left: 38px;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 18px;
+      }
+      .actions.left {
+        justify-content: flex-start;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 0 17px;
+        border: 0;
+        border-radius: 9px;
+        color: #fff;
+        background: var(--teal);
+        font-weight: 700;
+        font-size: 12px;
+        transition:
+          transform 0.2s,
+          background 0.2s;
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+        background: var(--teal-dark);
+      }
+      .btn.secondary {
+        color: var(--teal);
+        background: var(--mint);
+      }
+      .btn.secondary:hover {
+        background: #cce9dc;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th {
+        padding: 0 12px 12px;
+        color: var(--muted);
+        text-align: left;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        white-space: nowrap;
+      }
+      td {
+        padding: 14px 12px;
+        border-top: 1px solid #edf2f1;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        padding-left: 0;
+      }
+      th:last-child,
+      td:last-child {
+        padding-right: 0;
+        text-align: right;
+      }
+      .source {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+      }
+      .source-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--coral);
+      }
+      .source-dot.green {
+        background: var(--teal);
+      }
+      .source-dot.yellow {
+        background: var(--yellow);
+      }
+      .empty {
+        padding: 15px 0 2px;
+        color: var(--muted);
+        text-align: center;
+        font-size: 12px;
+      }
+      .delete {
+        border: 0;
+        color: #adbec1;
+        background: none;
+        font-size: 16px;
+        line-height: 1;
+      }
+      .delete:hover {
+        color: var(--coral);
+      }
+      .trip-card {
+        background: var(--ink);
+        color: #fff;
+      }
+      .trip-card .card-head {
+        border-color: rgba(255, 255, 255, 0.12);
+      }
+      .trip-card .card-head p {
+        color: #a8bbc0;
+      }
+      .trip-card .number {
+        color: var(--ink);
+        background: var(--yellow);
+      }
+      .trip-card .card-body {
+        padding-top: 20px;
+      }
+      .trip-card .card-head h2::after {
+        content: "  •  média 8 km/l";
+        color: var(--yellow);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+      .trip-card label {
+        color: #afc1c5;
+      }
+      .trip-card input {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .trip-card input::placeholder {
+        color: #80979d;
+      }
+      .trip-card input:focus {
+        border-color: var(--yellow);
+        box-shadow: 0 0 0 3px rgba(245, 200, 91, 0.15);
+      }
+      .trip-card .btn {
+        color: var(--ink);
+        background: var(--yellow);
+      }
+      .trip-card .btn:hover {
+        background: #f8d277;
+      }
+      .trip-results {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 22px;
+      }
+      .result {
+        padding: 13px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .result label {
+        display: block;
+        margin-bottom: 6px;
+      }
+      .result strong {
+        font-size: 18px;
+      }
+      .result.full {
+        grid-column: span 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(245, 200, 91, 0.14);
+      }
+      .result.full strong {
+        color: var(--yellow);
+      }
+      .trend {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 118px;
+        padding: 12px 0 0;
+      }
+      .bar {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        flex-direction: column;
+        gap: 7px;
+        height: 100%;
+        justify-content: flex-end;
+      }
+      .bar span {
+        width: 100%;
+        max-width: 30px;
+        border-radius: 5px 5px 2px 2px;
+        background: #b8ddd0;
+      }
+      .bar.active span {
+        background: var(--coral);
+      }
+      .bar small {
+        color: var(--muted);
+        font-family: "DM Mono", monospace;
+        font-size: 9px;
+      }
+      .legend {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 15px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .legend b {
+        color: var(--teal);
+      }
+      .tip {
+        display: flex;
+        gap: 12px;
+        padding: 15px;
+        border-radius: 11px;
+        background: #fff7df;
+        color: #78632d;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .tip strong {
+        display: block;
+        margin-bottom: 2px;
+        color: #5e4b1d;
+      }
+      .income-fixed-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .income-source-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .currency-input {
+        text-align: right;
+      }
+      .form-hint {
+        margin: 12px 0 0;
+        color: #a8bbc0;
+        font-size: 11px;
+      }
+      @media (max-width: 950px) {
+        .summary {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        .side-column {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 620px) {
+        .shell {
+          padding: 22px 16px 45px;
+        }
+        .topbar {
+          display: block;
+        }
+        .period {
+          display: inline-flex;
+          margin-top: 20px;
+        }
+        h1 {
+          font-size: 38px;
+        }
+        .summary,
+        .side-column {
+          grid-template-columns: 1fr;
+        }
+        .card-head,
+        .card-body {
+          padding-left: 17px;
+          padding-right: 17px;
+        }
+        .form-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .field.wide {
+          grid-column: span 2;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <div class="brand">
+            <div class="brand-mark">m</div>
+            <div class="brand-name">mana<span>@</span>viajar</div>
+          </div>
+          <p class="eyebrow" style="margin-top: 44px">painel da viagem</p>
+          <h1>
+            Seu caminho,<br /><span style="color: var(--teal)"
+              >bem calculado.</span
+            >
+          </h1>
+          <p class="intro">
+            Organize os ganhos, acompanhe cada gasto e descubra quanto custa
+            cada quilômetro da sua jornada.
+          </p>
+        </div>
+        <div class="top-actions">
+          <button class="history-button" id="history-button" type="button">
+            ▣ Ver histórico
+          </button>
+          <div class="period">
+            <div>
+              <span>Dia da viagem</span>
+              <input
+                id="date-picker"
+                type="date"
+                aria-label="Selecionar dia da viagem"
+              />
+              <small class="save-status" id="save-status"
+                >salvo automaticamente</small
+              >
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <article class="card trip-card top-trip">
+        <div class="card-head">
+          <div>
+            <h2>Calculadora do percurso</h2>
+            <p>
+              Informe os dados antes de iniciar a viagem. Ao final, atualize o
+              km final.
+            </p>
+          </div>
+          <div class="number">01</div>
+        </div>
+        <div class="card-body">
+          <form id="trip-form">
+            <div class="form-grid">
+              <div class="field">
+                <label for="start-km">Km inicial</label
+                ><input
+                  id="start-km"
+                  required
+                  class="integer-input"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Ex.: 12500"
+                />
+              </div>
+              <div class="field">
+                <label for="end-km">Km final</label
+                ><input
+                  id="end-km"
+                  required
+                  class="integer-input"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Preencha ao retornar"
+                />
+              </div>
+              <div class="field">
+                <label for="fuel-price">Preço do litro</label>
+                <div class="money">
+                  <span>R$</span
+                  ><input
+                    id="fuel-price"
+                    class="currency-input"
+                    inputmode="numeric"
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+              <div class="field">
+                <label for="fuel-total">valor abastecido</label>
+                <div class="money">
+                  <span>R$</span
+                  ><input
+                    id="fuel-total"
+                    class="currency-input"
+                    inputmode="numeric"
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+              <div class="field">
+                <label for="fuel-liters">Litros abastecidos</label>
+                <input
+                  id="fuel-liters"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="Ex.: 25,00"
+                />
+              </div>
+            </div>
+            <p class="form-hint">
+              Informe valor + preço/litro para descobrir os litros, ou valor +
+              litros para descobrir o preço por litro.
+            </p>
+            <div class="trip-results">
+              <div class="result">
+                <label>Km percorridos</label
+                ><strong id="trip-distance">0 km</strong>
+              </div>
+              <div class="result">
+                <label>Litros gastos na corrida</label
+                ><strong id="trip-liters">0 L</strong>
+              </div>
+              <div class="result">
+                <label>Custo combustível</label
+                ><strong id="fuel-cost">R$ 0,00</strong>
+              </div>
+              <div class="result full">
+                <label>Custo por quilômetro</label
+                ><strong id="trip-cost-km">R$ 0,00 / km</strong>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn secondary" id="clear-trip" type="button">
+                Limpar valores
+              </button>
+              <button class="btn" type="submit">Calcular percurso</button>
+            </div>
+          </form>
+        </div>
+      </article>
+
+      <section class="summary" aria-label="Resumo financeiro">
+        <div class="metric primary">
+          <div class="metric-label">
+            Saldo da viagem <span class="metric-icon">↗</span>
+          </div>
+          <p class="metric-value" id="balance">R$ 0,00</p>
+          <p class="metric-note">ganhos menos despesas</p>
+        </div>
+        <div class="metric">
+          <div class="metric-label">
+            Total de ganhos
+            <span class="metric-icon" style="color: var(--teal)">＋</span>
+          </div>
+          <p class="metric-value" id="income-total">R$ 0,00</p>
+          <p class="metric-note" id="income-count">0 fontes registradas</p>
+        </div>
+        <div class="metric">
+          <div class="metric-label">
+            Total de despesas
+            <span class="metric-icon" style="color: var(--coral)">−</span>
+          </div>
+          <p class="metric-value" id="expense-total">R$ 0,00</p>
+          <p class="metric-note" id="expense-count">0 despesas registradas</p>
+        </div>
+        <div class="metric">
+          <div class="metric-label">
+            Custo por km
+            <span class="metric-icon" style="color: var(--yellow)">⌁</span>
+          </div>
+          <p class="metric-value" id="cost-km">R$ 0,00</p>
+          <p class="metric-note" id="distance-note">0 km percorridos</p>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="main-column">
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <h2>Entradas da viagem</h2>
+                <p>Registre cada fonte de ganho separadamente.</p>
+              </div>
+              <div class="number">02</div>
+            </div>
+            <div class="card-body">
+              <form id="income-form">
+                <div class="income-fixed-grid">
+                  <div class="field">
+                    <label class="income-source-label" for="income-uber"
+                      ><i class="source-dot"></i>1º UBER</label
+                    >
+                    <div class="money">
+                      <span>R$</span
+                      ><input
+                        id="income-uber"
+                        class="currency-input"
+                        inputmode="numeric"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="income-source-label" for="income-99"
+                      ><i class="source-dot green"></i>2º 99</label
+                    >
+                    <div class="money">
+                      <span>R$</span
+                      ><input
+                        id="income-99"
+                        class="currency-input"
+                        inputmode="numeric"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="income-source-label" for="income-indrive"
+                      ><i class="source-dot yellow"></i>3º inDrive</label
+                    >
+                    <div class="money">
+                      <span>R$</span
+                      ><input
+                        id="income-indrive"
+                        class="currency-input"
+                        inputmode="numeric"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="income-source-label" for="income-particular"
+                      ><i class="source-dot coral"></i>4º Particular</label
+                    >
+                    <div class="money">
+                      <span>R$</span
+                      ><input
+                        id="income-particular"
+                        class="currency-input"
+                        inputmode="numeric"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="btn" type="submit">Salvar ganhos</button>
+                </div>
+              </form>
+              <div class="actions left" style="margin-top: 25px">
+                <button
+                  class="btn secondary"
+                  id="income-total-button"
+                  type="button"
+                >
+                  Total dos ganhos: R$ 0,00
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <h2>Despesas do caminho</h2>
+                <p>Separe os custos para enxergar onde o dinheiro vai.</p>
+              </div>
+              <div class="number">03</div>
+            </div>
+            <div class="card-body">
+              <form id="expense-form">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="expense-category">Categoria</label
+                    ><select id="expense-category">
+                      <option>Combustível</option>
+                      <option>Alimentação</option>
+                      <option>Pedágios</option>
+                      <option>Peças/manutenção</option>
+                      <option>Outros</option>
+                    </select>
+                  </div>
+                  <div class="field wide">
+                    <label for="expense-description">Descrição</label
+                    ><input
+                      id="expense-description"
+                      required
+                      placeholder="Ex.: Abastecimento no posto da rodovia"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="expense-value">Valor gasto</label>
+                    <div class="money">
+                      <span>R$</span
+                      ><input
+                        id="expense-value"
+                        required
+                        class="currency-input"
+                        inputmode="numeric"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="btn secondary" type="submit">
+                    ＋ Adicionar despesa
+                  </button>
+                </div>
+              </form>
+              <div class="table-wrap" style="margin-top: 25px">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Categoria</th>
+                      <th>Descrição</th>
+                      <th>Valor</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="expense-list"></tbody>
+                </table>
+                <div class="empty" id="expense-empty">
+                  Nenhuma despesa adicionada ainda.
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <aside class="side-column">
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <h2>Visão dos ganhos</h2>
+                <p>Distribuição por fonte registrada.</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="trend" id="income-chart">
+                <div class="bar" style="height: 22%">
+                  <span></span><small>—</small>
+                </div>
+                <div class="bar" style="height: 45%">
+                  <span></span><small>—</small>
+                </div>
+                <div class="bar" style="height: 67%">
+                  <span></span><small>—</small>
+                </div>
+                <div class="bar" style="height: 36%">
+                  <span></span><small>—</small>
+                </div>
+                <div class="bar" style="height: 86%">
+                  <span></span><small>—</small>
+                </div>
+              </div>
+              <div class="legend">
+                <span>fontes de renda</span><b id="chart-total">R$ 0,00</b>
+              </div>
+            </div>
+          </article>
+          <div class="tip">
+            <span>✦</span>
+            <div>
+              <strong>Dica de rota</strong>Registre também os pequenos gastos.
+              Eles revelam o custo real da viagem.
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+    <div
+      class="modal-backdrop"
+      id="history-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="history-title"
+    >
+      <section class="history-modal">
+        <div class="card-head">
+          <div>
+            <h2 id="history-title">Histórico da viagem</h2>
+            <p>Todos os registros salvos por dia.</p>
+          </div>
+          <button
+            class="close-modal"
+            id="close-history"
+            type="button"
+            aria-label="Fechar histórico"
+          >
+            ×
+          </button>
+        </div>
+        <div class="history-content">
+          <div id="history-list"></div>
+        </div>
+      </section>
+    </div>
+    <script>
+      const state = {
+        incomes: [],
+        expenses: [],
+        trip: { start: 0, end: 0, fuelPrice: 0, fuelTotal: 0 },
+      };
+      const storageKey = "mana-viajar-daily-history";
+      let selectedDate = new Date().toLocaleDateString("en-CA");
+      const money = (value) =>
+        value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      const parseCurrency = (value) => {
+        const digits = String(value).replace(/\D/g, "");
+        return digits ? Number(digits) / 100 : 0;
+      };
+      const valueOf = (id) => {
+        const input = document.getElementById(id);
+        return input.classList.contains("currency-input")
+          ? parseCurrency(input.value)
+          : Number(input.value) || 0;
+      };
+      const formatCurrencyInput = (input) => {
+        const digits = input.value.replace(/\D/g, "");
+        input.value = digits
+          ? (Number(digits) / 100).toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          : "";
+      };
+      const formatNumberInput = (value) =>
+        value
+          ? value.toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          : "";
+
+      /**
+       * Registra abastecimentos de veículo próprio e calcula a média somente
+       * quando o motorista completa o tanque.
+       */
+      function calculateOwnVehicleConsumption(history, refueling) {
+        const vehicleHistory = history.filter(
+          (item) => item.veiculo_id === refueling.veiculo_id,
+        );
+        const odometer = Number(refueling.odometro_atual);
+        const liters = Number(refueling.litros_abastecidos);
+        const amountPaid = Number(refueling.valor_pago);
+
+        if (!refueling.veiculo_id) {
+          throw new Error("O abastecimento precisa informar o veiculo_id.");
+        }
+        if (!Number.isFinite(odometer) || odometer < 0) {
+          throw new Error("O odometro_atual precisa ser um numero valido.");
+        }
+        if (!Number.isFinite(liters) || liters <= 0) {
+          throw new Error("litros_abastecidos deve ser maior que zero.");
+        }
+        if (!Number.isFinite(amountPaid) || amountPaid < 0) {
+          throw new Error("valor_pago precisa ser um numero valido.");
+        }
+
+        const lastRefueling = vehicleHistory.at(-1);
+        if (lastRefueling && odometer <= lastRefueling.odometro_atual) {
+          throw new Error(
+            `Odometro invalido: informe um valor maior que ${lastRefueling.odometro_atual} km.`,
+          );
+        }
+
+        const savedRefueling = {
+          ...refueling,
+          odometro_atual: odometer,
+          litros_abastecidos: liters,
+          valor_pago: amountPaid,
+          tanque_cheio: Boolean(refueling.tanque_cheio),
+        };
+        history.push(savedRefueling);
+
+        if (vehicleHistory.length === 0) {
+          return {
+            status: "Média indisponível",
+            media_km_l: null,
+            custo_medio_litro: null,
+            abastecimento: savedRefueling,
+          };
+        }
+
+        if (!savedRefueling.tanque_cheio) {
+          return {
+            status: "Média indisponível (Parcial acumulado)",
+            media_km_l: null,
+            custo_medio_litro: null,
+            abastecimento: savedRefueling,
+          };
+        }
+
+        const lastFullTank = [...vehicleHistory]
+          .reverse()
+          .find((item) => item.tanque_cheio);
+        const startingPoint = lastFullTank || vehicleHistory[0];
+        const accumulated = vehicleHistory.filter(
+          (item) => item.odometro_atual > startingPoint.odometro_atual,
+        );
+        accumulated.push(savedRefueling);
+
+        const totalLiters = accumulated.reduce(
+          (sum, item) => sum + item.litros_abastecidos,
+          0,
+        );
+        const totalPaid = accumulated.reduce(
+          (sum, item) => sum + item.valor_pago,
+          0,
+        );
+        const distance = odometer - startingPoint.odometro_atual;
+
+        if (distance <= 0 || totalLiters <= 0) {
+          throw new Error(
+            "Nao foi possivel calcular: distancia e litros acumulados devem ser maiores que zero.",
+          );
+        }
+
+        return {
+          status: "Média calculada",
+          media_km_l: distance / totalLiters,
+          custo_medio_litro: totalPaid / totalLiters,
+          distancia_km: distance,
+          litros_acumulados: totalLiters,
+          valor_acumulado: totalPaid,
+          abastecimento: savedRefueling,
+        };
+      }
+
+      const fuelInputIds = ["fuel-price", "fuel-total", "fuel-liters"];
+      let calculatedFuelField = null;
+      const readFuelInputs = () => ({
+        "fuel-price": parseCurrency(
+          document.getElementById("fuel-price").value,
+        ),
+        "fuel-total": parseCurrency(
+          document.getElementById("fuel-total").value,
+        ),
+        "fuel-liters":
+          Number(
+            document
+              .getElementById("fuel-liters")
+              .value.replace(/\./g, "")
+              .replace(",", "."),
+          ) || 0,
+      });
+      const writeFuelInput = (id, value) => {
+        document.getElementById(id).value =
+          id === "fuel-liters" ? formatNumberInput(value) : moneyInput(value);
+      };
+      const calculateMissingFuelInput = (values, missingField) => {
+        if (missingField === "fuel-liters") {
+          return values["fuel-total"] / values["fuel-price"];
+        }
+        if (missingField === "fuel-total") {
+          return values["fuel-liters"] * values["fuel-price"];
+        }
+        return values["fuel-total"] / values["fuel-liters"];
+      };
+      function manageFuelFields(changedFieldId) {
+        const values = readFuelInputs();
+        const changedValue = values[changedFieldId];
+
+        if (calculatedFuelField === changedFieldId) {
+          calculatedFuelField = null;
+          if (!changedValue) return;
+        }
+
+        if (calculatedFuelField) {
+          if (!changedValue) {
+            document.getElementById(calculatedFuelField).value = "";
+            calculatedFuelField = null;
+          } else if (changedFieldId !== calculatedFuelField) {
+            writeFuelInput(
+              calculatedFuelField,
+              calculateMissingFuelInput(values, calculatedFuelField),
+            );
+            return;
+          }
+        }
+
+        const filledFields = fuelInputIds.filter((id) => values[id] > 0);
+        if (filledFields.length !== 2 || calculatedFuelField) return;
+
+        const emptyField = fuelInputIds.find((id) => !values[id]);
+        writeFuelInput(
+          emptyField,
+          calculateMissingFuelInput(values, emptyField),
+        );
+        calculatedFuelField = emptyField;
+      }
+      const calculateFuel = (trip, distance) => {
+        const liters = distance / 8;
+        const fuelPrice = trip.fuelPrice || 0;
+        const fuelTotal = liters * fuelPrice;
+        return { liters, fuelPrice, fuelTotal };
+      };
+      const escapeHtml = (text) =>
+        String(text).replace(
+          /[&<>'"]/g,
+          (char) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              "'": "&#039;",
+              '"': "&quot;",
+            })[char],
+        );
+
+      function saveDay() {
+        const history = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        history[selectedDate] = JSON.parse(JSON.stringify(state));
+        localStorage.setItem(storageKey, JSON.stringify(history));
+        document.getElementById("save-status").textContent =
+          "salvo automaticamente";
+      }
+
+      function renderHistory() {
+        const history = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const days = Object.entries(history).sort(([dateA], [dateB]) =>
+          dateB.localeCompare(dateA),
+        );
+        const historyList = document.getElementById("history-list");
+        if (!days.length) {
+          historyList.innerHTML =
+            '<div class="history-empty">Nenhum dia salvo ainda. Os registros aparecerão aqui depois de salvar uma viagem.</div>';
+          return;
+        }
+        const historyRows = days.map(([date, day]) => {
+          const incomeTotal = (day.incomes || []).reduce(
+            (sum, item) => sum + item.value,
+            0,
+          );
+          const expenseTotal = (day.expenses || []).reduce(
+            (sum, item) => sum + item.value,
+            0,
+          );
+          const distance = Math.max(
+            0,
+            (day.trip?.end || 0) - (day.trip?.start || 0),
+          );
+          const fuelCost = calculateFuel(day.trip || {}, distance).fuelTotal;
+          const refuelingTotal = day.trip?.fuelTotal || 0;
+          const totalCost = expenseTotal + refuelingTotal;
+          const costPerKm = distance ? fuelCost / distance : 0;
+          return { date, incomeTotal, totalCost, distance, costPerKm };
+        });
+        const historyTotals = historyRows.reduce(
+          (totals, row) => ({
+            income: totals.income + row.incomeTotal,
+            expenses: totals.expenses + row.totalCost,
+            distance: totals.distance + row.distance,
+            costPerKm: totals.costPerKm + row.costPerKm,
+            balance: totals.balance + row.incomeTotal - row.totalCost,
+          }),
+          { income: 0, expenses: 0, distance: 0, costPerKm: 0, balance: 0 },
+        );
+        historyList.innerHTML = `<div class="table-wrap"><table class="history-table"><thead><tr><th>Data</th><th>Ganhos</th><th>Despesas</th><th>Distância</th><th>Custo/km</th><th>Saldo</th></tr></thead><tbody>${historyRows
+          .map(
+            ({ date, incomeTotal, totalCost, distance, costPerKm }) =>
+              `<tr><td><button class="history-date" data-history-date="${date}" type="button">${new Intl.DateTimeFormat("pt-BR").format(new Date(`${date}T12:00:00`))}</button></td><td>${money(incomeTotal)}</td><td>${money(totalCost)}</td><td>${distance.toLocaleString("pt-BR")} km</td><td>${money(costPerKm)} / km</td><td>${money(incomeTotal - totalCost)}</td></tr>`,
+          )
+          .join(
+            "",
+          )}</tbody><tfoot><tr><td>Total</td><td>${money(historyTotals.income)}</td><td>${money(historyTotals.expenses)}</td><td>${historyTotals.distance.toLocaleString("pt-BR")} km</td><td>${money(historyTotals.costPerKm)} / km</td><td>${money(historyTotals.balance)}</td></tr></tfoot></table></div>`;
+      }
+
+      function loadDay(date) {
+        const history = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const saved = history[date];
+        state.incomes = saved?.incomes || [];
+        state.expenses = saved?.expenses || [];
+        state.trip = saved?.trip || {
+          start: 0,
+          end: 0,
+          fuelPrice: 0,
+          fuelTotal: 0,
+          fuelLiters: 0,
+        };
+        document.getElementById("date-picker").value = date;
+        document.getElementById("start-km").value = state.trip.start || "";
+        document.getElementById("end-km").value = state.trip.end || "";
+        document.getElementById("fuel-price").value = state.trip.fuelPrice
+          ? moneyInput(state.trip.fuelPrice)
+          : "";
+        document.getElementById("fuel-total").value = state.trip.fuelTotal
+          ? moneyInput(state.trip.fuelTotal)
+          : "";
+        document.getElementById("fuel-liters").value = state.trip.fuelLiters
+          ? formatNumberInput(state.trip.fuelLiters)
+          : "";
+        document.getElementById("save-status").textContent = saved
+          ? "registro carregado"
+          : "novo dia";
+        render();
+      }
+
+      function render() {
+        const incomeTotal = state.incomes.reduce(
+          (sum, item) => sum + item.value,
+          0,
+        );
+        const expenseTotal = state.expenses.reduce(
+          (sum, item) => sum + item.value,
+          0,
+        );
+        const distance = Math.max(0, state.trip.end - state.trip.start);
+        const fuel = calculateFuel(state.trip, distance);
+        const litersSpent = distance / 8;
+        const fuelCost = fuel.fuelTotal;
+        const refuelingTotal = state.trip.fuelTotal || 0;
+        const totalCost = expenseTotal + refuelingTotal;
+        const costPerKm = distance ? fuelCost / distance : 0;
+        document.getElementById("income-total").textContent =
+          money(incomeTotal);
+        document.getElementById("expense-total").textContent = money(totalCost);
+        document.getElementById("balance").textContent = money(
+          incomeTotal - totalCost,
+        );
+        document.getElementById("cost-km").textContent = money(costPerKm);
+        document.getElementById("income-count").textContent =
+          `${state.incomes.length} ${state.incomes.length === 1 ? "fonte registrada" : "fontes registradas"}`;
+        document.getElementById("expense-count").textContent =
+          `${state.expenses.length} ${state.expenses.length === 1 ? "despesa registrada" : "despesas registradas"}`;
+        document.getElementById("distance-note").textContent =
+          `${distance.toLocaleString("pt-BR")} km percorridos`;
+        document.getElementById("chart-total").textContent = money(incomeTotal);
+        document.getElementById("trip-distance").textContent =
+          `${distance.toLocaleString("pt-BR")} km`;
+        document.getElementById("trip-liters").textContent =
+          `${litersSpent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} L`;
+        document.getElementById("fuel-cost").textContent = money(fuelCost);
+        document.getElementById("trip-cost-km").textContent =
+          `${money(costPerKm)} / km`;
+        document.getElementById("fuel-price").value = fuel.fuelPrice
+          ? moneyInput(fuel.fuelPrice)
+          : "";
+        [
+          ["income-uber", "UBER"],
+          ["income-99", "99"],
+          ["income-indrive", "inDrive"],
+          ["income-particular", "Particular"],
+        ].forEach(([id, source]) => {
+          const item = state.incomes.find((income) => income.source === source);
+          document.getElementById(id).value = item
+            ? moneyInput(item.value)
+            : "";
+        });
+        document.getElementById("expense-list").innerHTML = state.expenses
+          .map(
+            (item, index) =>
+              `<tr><td>${escapeHtml(item.category)}</td><td>${escapeHtml(item.description)}</td><td>${money(item.value)}</td><td><button class="delete" data-type="expense" data-index="${index}" aria-label="Excluir despesa">×</button></td></tr>`,
+          )
+          .join("");
+        document.getElementById("income-total-button").textContent =
+          `Total dos ganhos: ${money(incomeTotal)}`;
+        document.getElementById("expense-empty").style.display = state.expenses
+          .length
+          ? "none"
+          : "block";
+        const bars = document.querySelectorAll("#income-chart .bar");
+        const maxIncome = Math.max(
+          ...state.incomes.map((item) => item.value),
+          1,
+        );
+        bars.forEach((bar, index) => {
+          const item = state.incomes[index];
+          bar.style.height = `${item ? Math.max(18, (item.value / maxIncome) * 90) : 18}%`;
+          bar.classList.toggle("active", Boolean(item));
+          bar.querySelector("small").textContent = item
+            ? money(item.value).replace("R$ ", "")
+            : "—";
+        });
+      }
+
+      const moneyInput = (value) =>
+        value.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+
+      document.querySelectorAll(".currency-input").forEach((input) => {
+        input.addEventListener("input", () => formatCurrencyInput(input));
+      });
+      document.querySelectorAll(".integer-input").forEach((input) => {
+        input.addEventListener("input", () => {
+          input.value = input.value.replace(/\D/g, "");
+        });
+      });
+      fuelInputIds.forEach((id) => {
+        document
+          .getElementById(id)
+          .addEventListener("input", () => manageFuelFields(id));
+      });
+      document
+        .getElementById("income-form")
+        .addEventListener("submit", (event) => {
+          event.preventDefault();
+          state.incomes = [
+            { source: "UBER", value: valueOf("income-uber") },
+            { source: "99", value: valueOf("income-99") },
+            { source: "inDrive", value: valueOf("income-indrive") },
+            { source: "Particular", value: valueOf("income-particular") },
+          ].filter((item) => item.value > 0);
+          saveDay();
+          render();
+        });
+      document
+        .getElementById("expense-form")
+        .addEventListener("submit", (event) => {
+          event.preventDefault();
+          state.expenses.push({
+            category: document.getElementById("expense-category").value,
+            description: document
+              .getElementById("expense-description")
+              .value.trim(),
+            value: valueOf("expense-value"),
+          });
+          event.target.reset();
+          saveDay();
+          render();
+        });
+      document
+        .getElementById("trip-form")
+        .addEventListener("submit", (event) => {
+          event.preventDefault();
+          const fuelPrice = valueOf("fuel-price");
+          const fuelTotal = valueOf("fuel-total");
+          const fuelLiters =
+            Number(
+              document.getElementById("fuel-liters").value.replace(",", "."),
+            ) || 0;
+          state.trip = {
+            start: valueOf("start-km"),
+            end: valueOf("end-km"),
+            fuelPrice,
+            fuelTotal,
+            fuelLiters,
+          };
+          saveDay();
+          render();
+        });
+      document.getElementById("clear-trip").addEventListener("click", () => {
+        document.getElementById("trip-form").reset();
+        state.trip = {
+          start: 0,
+          end: 0,
+          fuelPrice: 0,
+          fuelTotal: 0,
+          fuelLiters: 0,
+        };
+        saveDay();
+        render();
+      });
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest(".delete");
+        if (!button) return;
+        state[button.dataset.type === "income" ? "incomes" : "expenses"].splice(
+          Number(button.dataset.index),
+          1,
+        );
+        saveDay();
+        render();
+      });
+      document
+        .getElementById("date-picker")
+        .addEventListener("change", (event) => {
+          selectedDate =
+            event.target.value || new Date().toLocaleDateString("en-CA");
+          loadDay(selectedDate);
+        });
+      document
+        .getElementById("history-button")
+        .addEventListener("click", () => {
+          renderHistory();
+          document.getElementById("history-modal").classList.add("open");
+        });
+      document.getElementById("close-history").addEventListener("click", () => {
+        document.getElementById("history-modal").classList.remove("open");
+      });
+      document
+        .getElementById("history-modal")
+        .addEventListener("click", (event) => {
+          if (event.target.id === "history-modal")
+            event.currentTarget.classList.remove("open");
+        });
+      document.addEventListener("click", (event) => {
+        const historyDate = event.target.closest("[data-history-date]");
+        if (!historyDate) return;
+        selectedDate = historyDate.dataset.historyDate;
+        loadDay(selectedDate);
+        document.getElementById("history-modal").classList.remove("open");
+      });
+      loadDay(selectedDate);
+    </script>
+  </body>
+</html>
