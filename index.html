@@ -283,6 +283,10 @@
       .top-trip {
         margin-bottom: 26px;
       }
+      .top-trip .actions {
+        justify-content: center;
+        gap: 40px;
+      }
       .top-trip .form-grid {
         grid-template-columns: repeat(4, 1fr);
       }
@@ -389,6 +393,14 @@
       }
       .actions.left {
         justify-content: flex-start;
+      }
+      .income-actions {
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .income-actions .btn {
+        flex: 1;
       }
       .btn {
         display: inline-flex;
@@ -669,6 +681,15 @@
         .form-grid {
           grid-template-columns: 1fr 1fr;
         }
+        .top-trip .form-grid {
+          grid-template-columns: repeat(6, 1fr);
+        }
+        .top-trip .form-grid .field {
+          grid-column: span 2;
+        }
+        .top-trip .form-grid .field:nth-child(-n + 2) {
+          grid-column: span 3;
+        }
         .field.wide {
           grid-column: span 2;
         }
@@ -922,11 +943,11 @@
                     </div>
                   </div>
                 </div>
-                <div class="actions">
-                  <button class="btn" type="submit">Salvar ganhos</button>
-                </div>
               </form>
-              <div class="actions left" style="margin-top: 25px">
+              <div class="actions income-actions">
+                <button class="btn" type="submit" form="income-form">
+                  Salvar ganhos
+                </button>
                 <button
                   class="btn secondary"
                   id="income-total-button"
@@ -1321,8 +1342,7 @@
             (day.trip?.end || 0) - (day.trip?.start || 0),
           );
           const fuelCost = calculateFuel(day.trip || {}, distance).fuelTotal;
-          const refuelingTotal = day.trip?.fuelTotal || 0;
-          const totalCost = expenseTotal + refuelingTotal;
+          const totalCost = expenseTotal + fuelCost;
           const costPerKm = distance ? fuelCost / distance : 0;
           return { date, incomeTotal, totalCost, distance, costPerKm };
         });
@@ -1389,8 +1409,7 @@
         const fuel = calculateFuel(state.trip, distance);
         const litersSpent = distance / 8;
         const fuelCost = fuel.fuelTotal;
-        const refuelingTotal = state.trip.fuelTotal || 0;
-        const totalCost = expenseTotal + refuelingTotal;
+        const totalCost = expenseTotal + fuelCost;
         const costPerKm = distance ? fuelCost / distance : 0;
         document.getElementById("income-total").textContent =
           money(incomeTotal);
