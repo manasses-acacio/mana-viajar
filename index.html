@@ -160,6 +160,63 @@
         color: #fff;
         background: var(--teal);
       }
+      .sync-button {
+        min-height: 40px;
+        padding: 0 15px;
+        border: 0;
+        border-radius: 9px;
+        color: #fff;
+        background: var(--teal);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .sync-button.connected {
+        color: var(--teal);
+        background: var(--mint);
+      }
+      .sync-status {
+        display: block;
+        max-width: 220px;
+        color: var(--muted);
+        font-size: 10px;
+        text-align: right;
+        line-height: 1.4;
+      }
+      .setup-modal {
+        width: min(560px, 100%);
+        max-height: min(720px, 90vh);
+        overflow: auto;
+        border-radius: 18px;
+        background: var(--card);
+        box-shadow: 0 25px 80px rgba(23, 48, 66, 0.25);
+      }
+      .setup-modal .card-body {
+        padding: 0 24px 24px;
+      }
+      .setup-modal ol {
+        margin: 0 0 16px;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .setup-modal textarea {
+        width: 100%;
+        min-height: 140px;
+        margin-bottom: 12px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        resize: vertical;
+        font-family: "DM Mono", monospace;
+        font-size: 12px;
+      }
+      .setup-error {
+        min-height: 18px;
+        margin: 0 0 12px;
+        color: var(--coral);
+        font-size: 12px;
+      }
       .modal-backdrop {
         position: fixed;
         z-index: 10;
@@ -662,6 +719,14 @@
         .topbar {
           display: block;
         }
+        .top-actions {
+          justify-items: stretch;
+          margin-top: 18px;
+        }
+        .sync-status {
+          max-width: none;
+          text-align: left;
+        }
         .period {
           display: inline-flex;
           margin-top: 20px;
@@ -681,14 +746,21 @@
         .form-grid {
           grid-template-columns: 1fr 1fr;
         }
+        .income-fixed-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         .top-trip .form-grid {
           grid-template-columns: repeat(6, 1fr);
         }
         .top-trip .form-grid .field {
           grid-column: span 2;
         }
-        .top-trip .form-grid .field:nth-child(-n + 2) {
+        .top-trip .form-grid .field:nth-child(-n + 4) {
           grid-column: span 3;
+        }
+        .income-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .field.wide {
           grid-column: span 2;
@@ -716,6 +788,12 @@
           </p>
         </div>
         <div class="top-actions">
+          <button class="sync-button" id="sync-button" type="button">
+            Sincronizar aparelhos
+          </button>
+          <small class="sync-status" id="sync-status"
+            >os dados ainda ficam só neste aparelho</small
+          >
           <button class="history-button" id="history-button" type="button">
             ▣ Ver histórico
           </button>
@@ -747,12 +825,13 @@
           <div class="number">01</div>
         </div>
         <div class="card-body">
-          <form id="trip-form">
+          <form id="trip-form" autocomplete="off">
             <div class="form-grid">
               <div class="field">
                 <label for="start-km">Km inicial</label
                 ><input
                   id="start-km"
+                  autocomplete="off"
                   required
                   class="integer-input"
                   type="text"
@@ -765,6 +844,7 @@
                 <label for="end-km">Km final</label
                 ><input
                   id="end-km"
+                  autocomplete="off"
                   required
                   class="integer-input"
                   type="text"
@@ -779,6 +859,7 @@
                   <span>R$</span
                   ><input
                     id="fuel-price"
+                    autocomplete="off"
                     class="currency-input"
                     inputmode="numeric"
                     placeholder="0,00"
@@ -791,6 +872,7 @@
                   <span>R$</span
                   ><input
                     id="fuel-total"
+                    autocomplete="off"
                     class="currency-input"
                     inputmode="numeric"
                     placeholder="0,00"
@@ -801,6 +883,7 @@
                 <label for="fuel-liters">Litros abastecidos</label>
                 <input
                   id="fuel-liters"
+                  autocomplete="off"
                   type="text"
                   inputmode="decimal"
                   placeholder="Ex.: 25,00"
@@ -884,7 +967,7 @@
               <div class="number">02</div>
             </div>
             <div class="card-body">
-              <form id="income-form">
+              <form id="income-form" autocomplete="off">
                 <div class="income-fixed-grid">
                   <div class="field">
                     <label class="income-source-label" for="income-uber"
@@ -894,6 +977,7 @@
                       <span>R$</span
                       ><input
                         id="income-uber"
+                        autocomplete="off"
                         class="currency-input"
                         inputmode="numeric"
                         placeholder="0,00"
@@ -908,6 +992,7 @@
                       <span>R$</span
                       ><input
                         id="income-99"
+                        autocomplete="off"
                         class="currency-input"
                         inputmode="numeric"
                         placeholder="0,00"
@@ -922,6 +1007,7 @@
                       <span>R$</span
                       ><input
                         id="income-indrive"
+                        autocomplete="off"
                         class="currency-input"
                         inputmode="numeric"
                         placeholder="0,00"
@@ -936,6 +1022,7 @@
                       <span>R$</span
                       ><input
                         id="income-particular"
+                        autocomplete="off"
                         class="currency-input"
                         inputmode="numeric"
                         placeholder="0,00"
@@ -968,11 +1055,11 @@
               <div class="number">03</div>
             </div>
             <div class="card-body">
-              <form id="expense-form">
+              <form id="expense-form" autocomplete="off">
                 <div class="form-grid">
                   <div class="field">
                     <label for="expense-category">Categoria</label
-                    ><select id="expense-category">
+                    ><select id="expense-category" autocomplete="off">
                       <option>Combustível</option>
                       <option>Alimentação</option>
                       <option>Pedágios</option>
@@ -984,6 +1071,7 @@
                     <label for="expense-description">Descrição</label
                     ><input
                       id="expense-description"
+                      autocomplete="off"
                       required
                       placeholder="Ex.: Abastecimento no posto da rodovia"
                     />
@@ -994,6 +1082,7 @@
                       <span>R$</span
                       ><input
                         id="expense-value"
+                        autocomplete="off"
                         required
                         class="currency-input"
                         inputmode="numeric"
@@ -1096,14 +1185,87 @@
         </div>
       </section>
     </div>
+    <div
+      class="modal-backdrop"
+      id="sync-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sync-title"
+    >
+      <section class="setup-modal">
+        <div class="card-head">
+          <div>
+            <h2 id="sync-title">Sincronizar celular e computador</h2>
+            <p>O mesmo Google nos dois aparelhos une o histórico.</p>
+          </div>
+          <button
+            class="close-modal"
+            id="close-sync"
+            type="button"
+            aria-label="Fechar sincronização"
+          >
+            ×
+          </button>
+        </div>
+        <div class="card-body">
+          <ol>
+            <li>
+              Abra
+              <a href="https://console.firebase.google.com/" target="_blank"
+                rel="noreferrer"
+                >console.firebase.google.com</a
+              >
+              e crie um projeto (aceite os termos do Firebase).
+            </li>
+            <li>
+              Em Authentication, ative o provedor Google. Em Firestore
+              Database, crie o banco no modo produção e cole as regras do
+              arquivo <code>firestore.rules</code>.
+            </li>
+            <li>
+              Em Project settings, adicione um app Web e cole o objeto
+              <code>firebaseConfig</code> abaixo.
+            </li>
+            <li>
+              Inclua este site em Authentication → Settings → Authorized
+              domains (localhost e o endereço do GitHub Pages ou do Hosting).
+            </li>
+          </ol>
+          <textarea
+            id="firebase-config-input"
+            spellcheck="false"
+            placeholder='{ "apiKey": "...", "authDomain": "...", "projectId": "..." }'
+          ></textarea>
+          <p class="setup-error" id="sync-error"></p>
+          <div class="actions">
+            <button class="btn secondary" id="save-firebase-config" type="button">
+              Guardar configuração
+            </button>
+            <button class="btn" id="google-signin" type="button">
+              Entrar com Google
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
     <script>
       const state = {
         incomes: [],
         expenses: [],
+        expenseDraft: { category: "Combustível", description: "", value: 0 },
         trip: { start: 0, end: 0, fuelPrice: 0, fuelTotal: 0 },
       };
       const storageKey = "mana-viajar-daily-history";
+      const firebaseConfigKey = "mana-viajar-firebase-config";
       let selectedDate = new Date().toLocaleDateString("en-CA");
+      let firebaseReady = false;
+      let cloudUser = null;
+      let cloudUnsub = null;
+      let cloudSaveTimer = null;
+      let applyingRemote = false;
       const money = (value) =>
         value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
       const parseCurrency = (value) => {
@@ -1115,6 +1277,40 @@
         return input.classList.contains("currency-input")
           ? parseCurrency(input.value)
           : Number(input.value) || 0;
+      };
+      const readTripForm = () => ({
+        start: valueOf("start-km"),
+        end: valueOf("end-km"),
+        fuelPrice: valueOf("fuel-price"),
+        fuelTotal: valueOf("fuel-total"),
+        fuelLiters:
+          Number(
+            document
+              .getElementById("fuel-liters")
+              .value.replace(/\./g, "")
+              .replace(",", "."),
+          ) || 0,
+      });
+      const readIncomeForm = () =>
+        [
+          ["income-uber", "UBER"],
+          ["income-99", "99"],
+          ["income-indrive", "inDrive"],
+          ["income-particular", "Particular"],
+        ]
+          .map(([id, source]) => ({ source, value: valueOf(id) }))
+          .filter((item) => item.value > 0);
+      const readExpenseDraft = () => ({
+        category: document.getElementById("expense-category").value,
+        description: document
+          .getElementById("expense-description")
+          .value.trim(),
+        value: valueOf("expense-value"),
+      });
+      const syncFormState = (formId) => {
+        if (formId === "trip-form") state.trip = readTripForm();
+        if (formId === "income-form") state.incomes = readIncomeForm();
+        if (formId === "expense-form") state.expenseDraft = readExpenseDraft();
       };
       const formatCurrencyInput = (input) => {
         const digits = input.value.replace(/\D/g, "");
@@ -1309,16 +1505,189 @@
             })[char],
         );
 
-      function saveDay() {
-        const history = JSON.parse(localStorage.getItem(storageKey) || "{}");
-        history[selectedDate] = JSON.parse(JSON.stringify(state));
+      function getHistory() {
+        return JSON.parse(localStorage.getItem(storageKey) || "{}");
+      }
+      function setHistory(history) {
         localStorage.setItem(storageKey, JSON.stringify(history));
-        document.getElementById("save-status").textContent =
-          "salvo automaticamente";
+      }
+      function parseFirebaseConfig(raw) {
+        const text = String(raw || "").trim();
+        if (!text) return null;
+        try {
+          const config = JSON.parse(text);
+          if (config.apiKey && config.projectId && config.authDomain) return config;
+        } catch (error) {
+          /* tenta o formato que o Firebase mostra no console */
+        }
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) return null;
+        try {
+          const config = Function(`"use strict"; return (${match[0]})`)();
+          if (config?.apiKey && config?.projectId && config?.authDomain) return config;
+        } catch (error) {
+          return null;
+        }
+        return null;
+      }
+      function readFirebaseConfig() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(firebaseConfigKey) || "null");
+          if (saved?.apiKey && saved?.projectId && saved?.authDomain) return saved;
+        } catch (error) {
+          return null;
+        }
+        return parseFirebaseConfig(
+          document.getElementById("firebase-config-input")?.value,
+        );
+      }
+      function setSyncStatus(text, connected) {
+        document.getElementById("sync-status").textContent = text;
+        document.getElementById("sync-button").classList.toggle("connected", Boolean(connected));
+        document.getElementById("sync-button").textContent = connected
+          ? "Conta conectada"
+          : "Sincronizar aparelhos";
+      }
+      function dayRef(uid, date) {
+        return firebase.firestore().collection("users").doc(uid).collection("days").doc(date);
+      }
+      function scheduleCloudSave(date, payload) {
+        if (!cloudUser) return;
+        clearTimeout(cloudSaveTimer);
+        cloudSaveTimer = setTimeout(async () => {
+          try {
+            await dayRef(cloudUser.uid, date).set(payload);
+            document.getElementById("save-status").textContent = "salvo nos aparelhos";
+          } catch (error) {
+            document.getElementById("save-status").textContent = "salvo só neste aparelho";
+            setSyncStatus("não foi possível enviar à nuvem", Boolean(cloudUser));
+          }
+        }, 700);
+      }
+      async function uploadLocalHistory(uid) {
+        const history = getHistory();
+        const dates = Object.keys(history);
+        if (!dates.length) return;
+        const db = firebase.firestore();
+        for (let index = 0; index < dates.length; index += 400) {
+          const batch = db.batch();
+          dates.slice(index, index + 400).forEach((date) => {
+            batch.set(dayRef(uid, date), history[date], { merge: true });
+          });
+          await batch.commit();
+        }
+      }
+      function listenCloudHistory(uid) {
+        if (cloudUnsub) cloudUnsub();
+        cloudUnsub = firebase
+          .firestore()
+          .collection("users")
+          .doc(uid)
+          .collection("days")
+          .onSnapshot((snapshot) => {
+            const history = getHistory();
+            let changed = false;
+            snapshot.docChanges().forEach((change) => {
+              const date = change.doc.id;
+              if (change.type === "removed") {
+                if (history[date]) {
+                  delete history[date];
+                  changed = true;
+                }
+                return;
+              }
+              const remote = change.doc.data();
+              const local = history[date];
+              if (!local || (remote.updatedAt || 0) > (local.updatedAt || 0)) {
+                history[date] = remote;
+                changed = true;
+              }
+            });
+            if (!changed) return;
+            applyingRemote = true;
+            setHistory(history);
+            loadDay(selectedDate);
+            applyingRemote = false;
+            setSyncStatus(
+              cloudUser?.email
+                ? `sincronizado com ${cloudUser.email}`
+                : "sincronizado",
+              true,
+            );
+          });
+      }
+      function initFirebaseApp() {
+        const config = readFirebaseConfig();
+        if (!config || typeof firebase === "undefined") return false;
+        if (!firebaseReady) {
+          if (!firebase.apps.length) firebase.initializeApp(config);
+          firebaseReady = true;
+        }
+        return true;
+      }
+      async function connectGoogle() {
+        document.getElementById("sync-error").textContent = "";
+        if (!initFirebaseApp()) {
+          document.getElementById("sync-error").textContent =
+            "Cole a configuração do Firebase antes de entrar.";
+          return;
+        }
+        const provider = new firebase.auth.GoogleAuthProvider();
+        try {
+          await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+          await firebase.auth().signInWithPopup(provider);
+        } catch (error) {
+          if (error?.code === "auth/popup-blocked" || error?.code === "auth/operation-not-supported-in-this-environment") {
+            await firebase.auth().signInWithRedirect(provider);
+            return;
+          }
+          document.getElementById("sync-error").textContent =
+            error?.message || "Não foi possível entrar com o Google.";
+        }
+      }
+      function watchAuth() {
+        if (!initFirebaseApp()) {
+          setSyncStatus("os dados ainda ficam só neste aparelho", false);
+          return;
+        }
+        firebase.auth().onAuthStateChanged(async (user) => {
+          cloudUser = user;
+          if (!user) {
+            if (cloudUnsub) cloudUnsub();
+            cloudUnsub = null;
+            setSyncStatus("entre com o Google nos dois aparelhos", false);
+            return;
+          }
+          setSyncStatus(`sincronizado com ${user.email}`, true);
+          document.getElementById("sync-modal").classList.remove("open");
+          try {
+            await uploadLocalHistory(user.uid);
+            listenCloudHistory(user.uid);
+          } catch (error) {
+            setSyncStatus("conta ligada, mas o Firestore ainda não aceitou os dados", true);
+            document.getElementById("sync-error").textContent =
+              "Crie o Firestore e publique as regras de firestore.rules.";
+          }
+        });
+      }
+
+      function saveDay() {
+        if (applyingRemote) return;
+        const history = getHistory();
+        const payload = {
+          ...JSON.parse(JSON.stringify(state)),
+          updatedAt: Date.now(),
+        };
+        history[selectedDate] = payload;
+        setHistory(history);
+        document.getElementById("save-status").textContent = cloudUser
+          ? "sincronizando..."
+          : "salvo automaticamente";
+        scheduleCloudSave(selectedDate, payload);
       }
 
       function renderHistory() {
-        const history = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const history = getHistory();
         const days = Object.entries(history).sort(([dateA], [dateB]) =>
           dateB.localeCompare(dateA),
         );
@@ -1342,7 +1711,8 @@
             (day.trip?.end || 0) - (day.trip?.start || 0),
           );
           const fuelCost = calculateFuel(day.trip || {}, distance).fuelTotal;
-          const totalCost = expenseTotal + fuelCost;
+          const refuelingTotal = day.trip?.fuelTotal || 0;
+          const totalCost = expenseTotal + refuelingTotal;
           const costPerKm = distance ? fuelCost / distance : 0;
           return { date, incomeTotal, totalCost, distance, costPerKm };
         });
@@ -1367,10 +1737,15 @@
       }
 
       function loadDay(date) {
-        const history = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const history = getHistory();
         const saved = history[date];
         state.incomes = saved?.incomes || [];
         state.expenses = saved?.expenses || [];
+        state.expenseDraft = saved?.expenseDraft || {
+          category: "Combustível",
+          description: "",
+          value: 0,
+        };
         state.trip = saved?.trip || {
           start: 0,
           end: 0,
@@ -1389,6 +1764,14 @@
           : "";
         document.getElementById("fuel-liters").value = state.trip.fuelLiters
           ? formatNumberInput(state.trip.fuelLiters)
+          : "";
+        document.getElementById("expense-category").value =
+          state.expenseDraft.category || "Combustível";
+        document.getElementById("expense-description").value =
+          state.expenseDraft.description || "";
+        document.getElementById("expense-value").value = state.expenseDraft
+          .value
+          ? moneyInput(state.expenseDraft.value)
           : "";
         document.getElementById("save-status").textContent = saved
           ? "registro carregado"
@@ -1409,7 +1792,8 @@
         const fuel = calculateFuel(state.trip, distance);
         const litersSpent = distance / 8;
         const fuelCost = fuel.fuelTotal;
-        const totalCost = expenseTotal + fuelCost;
+        const refuelingTotal = state.trip.fuelTotal || 0;
+        const totalCost = expenseTotal + refuelingTotal;
         const costPerKm = distance ? fuelCost / distance : 0;
         document.getElementById("income-total").textContent =
           money(incomeTotal);
@@ -1492,16 +1876,20 @@
           .getElementById(id)
           .addEventListener("input", () => manageFuelFields(id));
       });
+      ["trip-form", "income-form", "expense-form"].forEach((formId) => {
+        const form = document.getElementById(formId);
+        const saveFormDraft = () => {
+          syncFormState(formId);
+          saveDay();
+        };
+        form.addEventListener("input", saveFormDraft);
+        form.addEventListener("change", saveFormDraft);
+      });
       document
         .getElementById("income-form")
         .addEventListener("submit", (event) => {
           event.preventDefault();
-          state.incomes = [
-            { source: "UBER", value: valueOf("income-uber") },
-            { source: "99", value: valueOf("income-99") },
-            { source: "inDrive", value: valueOf("income-indrive") },
-            { source: "Particular", value: valueOf("income-particular") },
-          ].filter((item) => item.value > 0);
+          syncFormState("income-form");
           saveDay();
           render();
         });
@@ -1509,14 +1897,10 @@
         .getElementById("expense-form")
         .addEventListener("submit", (event) => {
           event.preventDefault();
+          syncFormState("expense-form");
           state.expenses.push({
-            category: document.getElementById("expense-category").value,
-            description: document
-              .getElementById("expense-description")
-              .value.trim(),
-            value: valueOf("expense-value"),
+            ...state.expenseDraft,
           });
-          event.target.reset();
           saveDay();
           render();
         });
@@ -1524,19 +1908,7 @@
         .getElementById("trip-form")
         .addEventListener("submit", (event) => {
           event.preventDefault();
-          const fuelPrice = valueOf("fuel-price");
-          const fuelTotal = valueOf("fuel-total");
-          const fuelLiters =
-            Number(
-              document.getElementById("fuel-liters").value.replace(",", "."),
-            ) || 0;
-          state.trip = {
-            start: valueOf("start-km"),
-            end: valueOf("end-km"),
-            fuelPrice,
-            fuelTotal,
-            fuelLiters,
-          };
+          syncFormState("trip-form");
           saveDay();
           render();
         });
@@ -1591,6 +1963,53 @@
         loadDay(selectedDate);
         document.getElementById("history-modal").classList.remove("open");
       });
+      const fillSavedConfig = () => {
+        const saved = localStorage.getItem(firebaseConfigKey);
+        if (saved && !document.getElementById("firebase-config-input").value) {
+          document.getElementById("firebase-config-input").value = JSON.stringify(
+            JSON.parse(saved),
+            null,
+            2,
+          );
+        }
+      };
+      document.getElementById("sync-button").addEventListener("click", async () => {
+        if (cloudUser) {
+          await firebase.auth().signOut();
+          setSyncStatus("saiu da conta. os dados locais continuam aqui", false);
+          return;
+        }
+        fillSavedConfig();
+        document.getElementById("sync-modal").classList.add("open");
+      });
+      document.getElementById("close-sync").addEventListener("click", () => {
+        document.getElementById("sync-modal").classList.remove("open");
+      });
+      document.getElementById("sync-modal").addEventListener("click", (event) => {
+        if (event.target.id === "sync-modal")
+          event.currentTarget.classList.remove("open");
+      });
+      document.getElementById("save-firebase-config").addEventListener("click", () => {
+        const config = parseFirebaseConfig(
+          document.getElementById("firebase-config-input").value,
+        );
+        if (!config) {
+          document.getElementById("sync-error").textContent =
+            "Cole o objeto firebaseConfig completo.";
+          return;
+        }
+        localStorage.setItem(firebaseConfigKey, JSON.stringify(config));
+        if (typeof firebase !== "undefined" && firebase.apps.length) {
+          location.reload();
+          return;
+        }
+        firebaseReady = false;
+        document.getElementById("sync-error").textContent = "";
+        setSyncStatus("configuração guardada. entre com o Google", false);
+        watchAuth();
+      });
+      document.getElementById("google-signin").addEventListener("click", connectGoogle);
+      watchAuth();
       loadDay(selectedDate);
     </script>
   </body>
