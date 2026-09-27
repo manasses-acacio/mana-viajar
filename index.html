@@ -1871,6 +1871,26 @@
           input.value = input.value.replace(/\D/g, "");
         });
       });
+      document
+        .querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]')
+        .forEach((input) => {
+          let advanceTimer;
+          input.addEventListener("input", () => {
+            clearTimeout(advanceTimer);
+            if (!input.value.trim()) return;
+            advanceTimer = setTimeout(() => {
+              if (document.activeElement !== input) return;
+              const fields = Array.from(
+                input.form.querySelectorAll(
+                  'input[inputmode="numeric"], input[inputmode="decimal"]',
+                ),
+              ).filter((field) => !field.disabled && !field.readOnly);
+              const nextField = fields[fields.indexOf(input) + 1];
+              nextField?.focus();
+            }, 4000);
+          });
+          input.addEventListener("blur", () => clearTimeout(advanceTimer));
+        });
       fuelInputIds.forEach((id) => {
         document
           .getElementById(id)
