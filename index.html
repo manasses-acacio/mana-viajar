@@ -1218,9 +1218,9 @@
               e crie um projeto (aceite os termos do Firebase).
             </li>
             <li>
-              Em Authentication, ative o provedor Google. Em Firestore
-              Database, crie o banco no modo produção e cole as regras do
-              arquivo <code>firestore.rules</code>.
+              Em Authentication, ative o provedor Google. Em Realtime
+              Database, crie o banco e cole as regras do arquivo
+              <code>database.rules.json</code>.
             </li>
             <li>
               Em Project settings, adicione um app Web e cole o objeto
@@ -1234,7 +1234,7 @@
           <textarea
             id="firebase-config-input"
             spellcheck="false"
-            placeholder='{ "apiKey": "...", "authDomain": "...", "projectId": "..." }'
+            placeholder='{ "apiKey": "...", "authDomain": "...", "databaseURL": "...", "projectId": "..." }'
           ></textarea>
           <p class="setup-error" id="sync-error"></p>
           <div class="actions">
@@ -1250,7 +1250,7 @@
     </div>
     <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-database-compat.js"></script>
     <script>
       const state = {
         incomes: [],
@@ -1511,12 +1511,19 @@
       function setHistory(history) {
         localStorage.setItem(storageKey, JSON.stringify(history));
       }
+      function ensureDatabaseURL(config) {
+        if (config && !config.databaseURL && config.projectId) {
+          config.databaseURL = `https://${config.projectId}-default-rtdb.firebaseio.com`;
+        }
+        return config;
+      }
       function parseFirebaseConfig(raw) {
         const text = String(raw || "").trim();
         if (!text) return null;
         try {
           const config = JSON.parse(text);
-          if (config.apiKey && config.projectId && config.authDomain) return config;
+          if (config.apiKey && config.projectId && config.authDomain)
+            return ensureDatabaseURL(config);
         } catch (error) {
           /* tenta o formato que o Firebase mostra no console */
         }
@@ -1524,7 +1531,8 @@
         if (!match) return null;
         try {
           const config = Function(`"use strict"; return (${match[0]})`)();
-          if (config?.apiKey && config?.projectId && config?.authDomain) return config;
+          if (config?.apiKey && config?.projectId && config?.authDomain)
+            return ensureDatabaseURL(config);
         } catch (error) {
           return null;
         }
@@ -1533,7 +1541,8 @@
       function readFirebaseConfig() {
         try {
           const saved = JSON.parse(localStorage.getItem(firebaseConfigKey) || "null");
-          if (saved?.apiKey && saved?.projectId && saved?.authDomain) return saved;
+          if (saved?.apiKey && saved?.projectId && saved?.authDomain)
+            return ensureDatabaseURL(saved);
         } catch (error) {
           return null;
         }
@@ -1549,7 +1558,7 @@
           : "Sincronizar aparelhos";
       }
       function dayRef(uid, date) {
-        return firebase.firestore().collection("users").doc(uid).collection("days").doc(date);
+        return firebase.database().ref(`users/${uid}/days/${date}`);
       }
       function scheduleCloudSave(date, payload) {
         if (!cloudUser) return;
@@ -1568,53 +1577,41 @@
         const history = getHistory();
         const dates = Object.keys(history);
         if (!dates.length) return;
-        const db = firebase.firestore();
-        for (let index = 0; index < dates.length; index += 400) {
-          const batch = db.batch();
-          dates.slice(index, index + 400).forEach((date) => {
-            batch.set(dayRef(uid, date), history[date], { merge: true });
-          });
-          await batch.commit();
-        }
+        const updates = {};
+        dates.forEach((date) => {
+          updates[`users/${uid}/days/${date}`] = history[date];
+        });
+        await firebase.database().ref().update(updates);
       }
       function listenCloudHistory(uid) {
         if (cloudUnsub) cloudUnsub();
-        cloudUnsub = firebase
-          .firestore()
-          .collection("users")
-          .doc(uid)
-          .collection("days")
-          .onSnapshot((snapshot) => {
-            const history = getHistory();
-            let changed = false;
-            snapshot.docChanges().forEach((change) => {
-              const date = change.doc.id;
-              if (change.type === "removed") {
-                if (history[date]) {
-                  delete history[date];
-                  changed = true;
-                }
-                return;
-              }
-              const remote = change.doc.data();
-              const local = history[date];
-              if (!local || (remote.updatedAt || 0) > (local.updatedAt || 0)) {
-                history[date] = remote;
-                changed = true;
-              }
-            });
-            if (!changed) return;
-            applyingRemote = true;
-            setHistory(history);
-            loadDay(selectedDate);
-            applyingRemote = false;
-            setSyncStatus(
-              cloudUser?.email
-                ? `sincronizado com ${cloudUser.email}`
-                : "sincronizado",
-              true,
-            );
+        const daysRef = firebase.database().ref(`users/${uid}/days`);
+        const handler = (snapshot) => {
+          const remote = snapshot.val() || {};
+          const history = getHistory();
+          let changed = false;
+          /* Aplica dados remotos mais recentes */
+          Object.entries(remote).forEach(([date, remoteDay]) => {
+            const local = history[date];
+            if (!local || (remoteDay.updatedAt || 0) > (local.updatedAt || 0)) {
+              history[date] = remoteDay;
+              changed = true;
+            }
           });
+          if (!changed) return;
+          applyingRemote = true;
+          setHistory(history);
+          loadDay(selectedDate);
+          applyingRemote = false;
+          setSyncStatus(
+            cloudUser?.email
+              ? `sincronizado com ${cloudUser.email}`
+              : "sincronizado",
+            true,
+          );
+        };
+        daysRef.on("value", handler);
+        cloudUnsub = () => daysRef.off("value", handler);
       }
       function initFirebaseApp() {
         const config = readFirebaseConfig();
@@ -1664,9 +1661,9 @@
             await uploadLocalHistory(user.uid);
             listenCloudHistory(user.uid);
           } catch (error) {
-            setSyncStatus("conta ligada, mas o Firestore ainda não aceitou os dados", true);
+            setSyncStatus("conta ligada, mas o Realtime Database ainda não aceitou os dados", true);
             document.getElementById("sync-error").textContent =
-              "Crie o Firestore e publique as regras de firestore.rules.";
+              "Crie o Realtime Database e publique as regras de database.rules.json.";
           }
         });
       }
@@ -1688,52 +1685,55 @@
 
       function renderHistory() {
         const history = getHistory();
-        const days = Object.entries(history).sort(([dateA], [dateB]) =>
-          dateB.localeCompare(dateA),
-        );
+        const currentMonth = selectedDate.substring(0, 7); /* YYYY-MM */
+        const days = Object.entries(history)
+          .filter(([date]) => date.substring(0, 7) === currentMonth)
+          .sort(([dateA], [dateB]) => dateB.localeCompare(dateA));
         const historyList = document.getElementById("history-list");
+        const monthNames = [
+          "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+          "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
+        ];
+        const [year, month] = currentMonth.split("-");
+        const monthTitle = `${monthNames[Number(month) - 1]} de ${year}`;
+        document.getElementById("history-title").textContent =
+          `Histórico — ${monthTitle}`;
         if (!days.length) {
           historyList.innerHTML =
-            '<div class="history-empty">Nenhum dia salvo ainda. Os registros aparecerão aqui depois de salvar uma viagem.</div>';
+            `<div class="history-empty">Nenhum registro salvo em ${monthTitle}.</div>`;
           return;
         }
-        const historyRows = days.map(([date, day]) => {
+        const buildRowData = ([date, day]) => {
           const incomeTotal = (day.incomes || []).reduce(
-            (sum, item) => sum + item.value,
-            0,
+            (sum, item) => sum + item.value, 0,
           );
           const expenseTotal = (day.expenses || []).reduce(
-            (sum, item) => sum + item.value,
-            0,
+            (sum, item) => sum + item.value, 0,
           );
-          const distance = Math.max(
-            0,
-            (day.trip?.end || 0) - (day.trip?.start || 0),
-          );
+          const distance = Math.max(0, (day.trip?.end || 0) - (day.trip?.start || 0));
           const fuelCost = calculateFuel(day.trip || {}, distance).fuelTotal;
           const refuelingTotal = day.trip?.fuelTotal || 0;
           const totalCost = expenseTotal + refuelingTotal;
           const costPerKm = distance ? fuelCost / distance : 0;
           return { date, incomeTotal, totalCost, distance, costPerKm };
-        });
-        const historyTotals = historyRows.reduce(
-          (totals, row) => ({
-            income: totals.income + row.incomeTotal,
-            expenses: totals.expenses + row.totalCost,
-            distance: totals.distance + row.distance,
-            costPerKm: totals.costPerKm + row.costPerKm,
-            balance: totals.balance + row.incomeTotal - row.totalCost,
+        };
+        const rows = days.map(buildRowData);
+        const totals = rows.reduce(
+          (t, r) => ({
+            income: t.income + r.incomeTotal,
+            expenses: t.expenses + r.totalCost,
+            distance: t.distance + r.distance,
+            costPerKm: t.costPerKm + r.costPerKm,
+            balance: t.balance + r.incomeTotal - r.totalCost,
           }),
           { income: 0, expenses: 0, distance: 0, costPerKm: 0, balance: 0 },
         );
-        historyList.innerHTML = `<div class="table-wrap"><table class="history-table"><thead><tr><th>Data</th><th>Ganhos</th><th>Despesas</th><th>Distância</th><th>Custo/km</th><th>Saldo</th></tr></thead><tbody>${historyRows
+        historyList.innerHTML = `<div class="table-wrap"><table class="history-table"><thead><tr><th>Data</th><th>Ganhos</th><th>Despesas</th><th>Distância</th><th>Custo/km</th><th>Saldo</th></tr></thead><tbody>${rows
           .map(
             ({ date, incomeTotal, totalCost, distance, costPerKm }) =>
               `<tr><td><button class="history-date" data-history-date="${date}" type="button">${new Intl.DateTimeFormat("pt-BR").format(new Date(`${date}T12:00:00`))}</button></td><td>${money(incomeTotal)}</td><td>${money(totalCost)}</td><td>${distance.toLocaleString("pt-BR")} km</td><td>${money(costPerKm)} / km</td><td>${money(incomeTotal - totalCost)}</td></tr>`,
           )
-          .join(
-            "",
-          )}</tbody><tfoot><tr><td>Total</td><td>${money(historyTotals.income)}</td><td>${money(historyTotals.expenses)}</td><td>${historyTotals.distance.toLocaleString("pt-BR")} km</td><td>${money(historyTotals.costPerKm)} / km</td><td>${money(historyTotals.balance)}</td></tr></tfoot></table></div>`;
+          .join("")}</tbody><tfoot><tr><td>Total do mês</td><td>${money(totals.income)}</td><td>${money(totals.expenses)}</td><td>${totals.distance.toLocaleString("pt-BR")} km</td><td>${money(totals.costPerKm)} / km</td><td>${money(totals.balance)}</td></tr></tfoot></table></div>`;
       }
 
       function loadDay(date) {
