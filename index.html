@@ -1211,15 +1211,17 @@
           <ol>
             <li>
               Abra
-              <a href="https://console.firebase.google.com/" target="_blank"
+              <a
+                href="https://console.firebase.google.com/"
+                target="_blank"
                 rel="noreferrer"
                 >console.firebase.google.com</a
               >
               e crie um projeto (aceite os termos do Firebase).
             </li>
             <li>
-              Em Authentication, ative o provedor Google. Em Realtime
-              Database, crie o banco e cole as regras do arquivo
+              Em Authentication, ative o provedor Google. Em Realtime Database,
+              crie o banco e cole as regras do arquivo
               <code>database.rules.json</code>.
             </li>
             <li>
@@ -1227,8 +1229,8 @@
               <code>firebaseConfig</code> abaixo.
             </li>
             <li>
-              Inclua este site em Authentication → Settings → Authorized
-              domains (localhost e o endereço do GitHub Pages ou do Hosting).
+              Inclua este site em Authentication → Settings → Authorized domains
+              (localhost e o endereço do GitHub Pages ou do Hosting).
             </li>
           </ol>
           <textarea
@@ -1238,7 +1240,11 @@
           ></textarea>
           <p class="setup-error" id="sync-error"></p>
           <div class="actions">
-            <button class="btn secondary" id="save-firebase-config" type="button">
+            <button
+              class="btn secondary"
+              id="save-firebase-config"
+              type="button"
+            >
               Guardar configuração
             </button>
             <button class="btn" id="google-signin" type="button">
@@ -1540,7 +1546,9 @@
       }
       function readFirebaseConfig() {
         try {
-          const saved = JSON.parse(localStorage.getItem(firebaseConfigKey) || "null");
+          const saved = JSON.parse(
+            localStorage.getItem(firebaseConfigKey) || "null",
+          );
           if (saved?.apiKey && saved?.projectId && saved?.authDomain)
             return ensureDatabaseURL(saved);
         } catch (error) {
@@ -1552,7 +1560,9 @@
       }
       function setSyncStatus(text, connected) {
         document.getElementById("sync-status").textContent = text;
-        document.getElementById("sync-button").classList.toggle("connected", Boolean(connected));
+        document
+          .getElementById("sync-button")
+          .classList.toggle("connected", Boolean(connected));
         document.getElementById("sync-button").textContent = connected
           ? "Conta conectada"
           : "Sincronizar aparelhos";
@@ -1563,25 +1573,30 @@
       function scheduleCloudSave(date, payload) {
         if (!cloudUser) return;
         clearTimeout(cloudSaveTimer);
+        const uid = cloudUser.uid;
         cloudSaveTimer = setTimeout(async () => {
           try {
-            await dayRef(cloudUser.uid, date).set(payload);
-            document.getElementById("save-status").textContent = "salvo nos aparelhos";
+            const result = await dayRef(uid, date).transaction((remoteDay) => {
+              if (
+                !remoteDay ||
+                (payload.updatedAt || 0) > (remoteDay.updatedAt || 0)
+              ) {
+                return payload;
+              }
+              return;
+            });
+            document.getElementById("save-status").textContent = result.committed
+              ? "salvo nos aparelhos"
+              : "recebendo atualização mais recente";
           } catch (error) {
-            document.getElementById("save-status").textContent = "salvo só neste aparelho";
-            setSyncStatus("não foi possível enviar à nuvem", Boolean(cloudUser));
+            document.getElementById("save-status").textContent =
+              "salvo só neste aparelho";
+            setSyncStatus(
+              "não foi possível enviar à nuvem",
+              Boolean(cloudUser),
+            );
           }
         }, 700);
-      }
-      async function uploadLocalHistory(uid) {
-        const history = getHistory();
-        const dates = Object.keys(history);
-        if (!dates.length) return;
-        const updates = {};
-        dates.forEach((date) => {
-          updates[`users/${uid}/days/${date}`] = history[date];
-        });
-        await firebase.database().ref().update(updates);
       }
       function listenCloudHistory(uid) {
         if (cloudUnsub) cloudUnsub();
@@ -1589,28 +1604,81 @@
         const handler = (snapshot) => {
           const remote = snapshot.val() || {};
           const history = getHistory();
+          const mergedHistory = { ...history };
+          const localDaysToUpload = [];
           let changed = false;
-          /* Aplica dados remotos mais recentes */
-          Object.entries(remote).forEach(([date, remoteDay]) => {
-            const local = history[date];
-            if (!local || (remoteDay.updatedAt || 0) > (local.updatedAt || 0)) {
-              history[date] = remoteDay;
-              changed = true;
+
+          Object.entries(history).forEach(([date, localDay]) => {
+            const remoteDay = remote[date];
+            if (
+              !remoteDay ||
+              (localDay.updatedAt || 0) > (remoteDay.updatedAt || 0)
+            ) {
+              localDaysToUpload.push([date, localDay]);
             }
           });
-          if (!changed) return;
-          applyingRemote = true;
-          setHistory(history);
-          loadDay(selectedDate);
-          applyingRemote = false;
+
+          Object.entries(remote).forEach(([date, remoteDay]) => {
+            const local = history[date];
+            if (
+              !local ||
+              (remoteDay.updatedAt || 0) >= (local.updatedAt || 0)
+            ) {
+              if (JSON.stringify(local) !== JSON.stringify(remoteDay)) {
+                changed = true;
+              }
+              mergedHistory[date] = remoteDay;
+            }
+          });
+
+          if (changed) {
+            applyingRemote = true;
+            setHistory(mergedHistory);
+            loadDay(selectedDate);
+            applyingRemote = false;
+          }
+
           setSyncStatus(
             cloudUser?.email
               ? `sincronizado com ${cloudUser.email}`
               : "sincronizado",
             true,
           );
+
+          if (localDaysToUpload.length) {
+            Promise.all(
+              localDaysToUpload.map(([date, localDay]) =>
+                dayRef(uid, date).transaction((remoteDay) => {
+                  if (
+                    !remoteDay ||
+                    (localDay.updatedAt || 0) > (remoteDay.updatedAt || 0)
+                  ) {
+                    return localDay;
+                  }
+                  return;
+                }),
+              ),
+            ).catch((error) => {
+              document.getElementById("save-status").textContent =
+                "sincronização pendente";
+              setSyncStatus(
+                "não foi possível sincronizar todo o histórico",
+                Boolean(cloudUser),
+              );
+              console.error("Falha ao mesclar o histórico na nuvem:", error);
+            });
+          }
         };
-        daysRef.on("value", handler);
+        const handleError = (error) => {
+          setSyncStatus(
+            "não foi possível carregar o histórico da nuvem",
+            Boolean(cloudUser),
+          );
+          document.getElementById("sync-error").textContent =
+            error?.message || "Verifique a conexão e as regras do Firebase.";
+          console.error("Falha ao carregar o histórico da nuvem:", error);
+        };
+        daysRef.on("value", handler, handleError);
         cloudUnsub = () => daysRef.off("value", handler);
       }
       function initFirebaseApp() {
@@ -1631,10 +1699,15 @@
         }
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
-          await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+          await firebase
+            .auth()
+            .setPersistence(firebase.auth.Auth.Persistence.LOCAL);
           await firebase.auth().signInWithPopup(provider);
         } catch (error) {
-          if (error?.code === "auth/popup-blocked" || error?.code === "auth/operation-not-supported-in-this-environment") {
+          if (
+            error?.code === "auth/popup-blocked" ||
+            error?.code === "auth/operation-not-supported-in-this-environment"
+          ) {
             await firebase.auth().signInWithRedirect(provider);
             return;
           }
@@ -1657,14 +1730,7 @@
           }
           setSyncStatus(`sincronizado com ${user.email}`, true);
           document.getElementById("sync-modal").classList.remove("open");
-          try {
-            await uploadLocalHistory(user.uid);
-            listenCloudHistory(user.uid);
-          } catch (error) {
-            setSyncStatus("conta ligada, mas o Realtime Database ainda não aceitou os dados", true);
-            document.getElementById("sync-error").textContent =
-              "Crie o Realtime Database e publique as regras de database.rules.json.";
-          }
+          listenCloudHistory(user.uid);
         });
       }
 
@@ -1673,7 +1739,10 @@
         const history = getHistory();
         const payload = {
           ...JSON.parse(JSON.stringify(state)),
-          updatedAt: Date.now(),
+          updatedAt: Math.max(
+            Date.now(),
+            (history[selectedDate]?.updatedAt || 0) + 1,
+          ),
         };
         history[selectedDate] = payload;
         setHistory(history);
@@ -1691,26 +1760,40 @@
           .sort(([dateA], [dateB]) => dateB.localeCompare(dateA));
         const historyList = document.getElementById("history-list");
         const monthNames = [
-          "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-          "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
+          "Janeiro",
+          "Fevereiro",
+          "Março",
+          "Abril",
+          "Maio",
+          "Junho",
+          "Julho",
+          "Agosto",
+          "Setembro",
+          "Outubro",
+          "Novembro",
+          "Dezembro",
         ];
         const [year, month] = currentMonth.split("-");
         const monthTitle = `${monthNames[Number(month) - 1]} de ${year}`;
         document.getElementById("history-title").textContent =
           `Histórico — ${monthTitle}`;
         if (!days.length) {
-          historyList.innerHTML =
-            `<div class="history-empty">Nenhum registro salvo em ${monthTitle}.</div>`;
+          historyList.innerHTML = `<div class="history-empty">Nenhum registro salvo em ${monthTitle}.</div>`;
           return;
         }
         const buildRowData = ([date, day]) => {
           const incomeTotal = (day.incomes || []).reduce(
-            (sum, item) => sum + item.value, 0,
+            (sum, item) => sum + item.value,
+            0,
           );
           const expenseTotal = (day.expenses || []).reduce(
-            (sum, item) => sum + item.value, 0,
+            (sum, item) => sum + item.value,
+            0,
           );
-          const distance = Math.max(0, (day.trip?.end || 0) - (day.trip?.start || 0));
+          const distance = Math.max(
+            0,
+            (day.trip?.end || 0) - (day.trip?.start || 0),
+          );
           const fuelCost = calculateFuel(day.trip || {}, distance).fuelTotal;
           const refuelingTotal = day.trip?.fuelTotal || 0;
           const totalCost = expenseTotal + refuelingTotal;
@@ -1733,7 +1816,9 @@
             ({ date, incomeTotal, totalCost, distance, costPerKm }) =>
               `<tr><td><button class="history-date" data-history-date="${date}" type="button">${new Intl.DateTimeFormat("pt-BR").format(new Date(`${date}T12:00:00`))}</button></td><td>${money(incomeTotal)}</td><td>${money(totalCost)}</td><td>${distance.toLocaleString("pt-BR")} km</td><td>${money(costPerKm)} / km</td><td>${money(incomeTotal - totalCost)}</td></tr>`,
           )
-          .join("")}</tbody><tfoot><tr><td>Total do mês</td><td>${money(totals.income)}</td><td>${money(totals.expenses)}</td><td>${totals.distance.toLocaleString("pt-BR")} km</td><td>${money(totals.costPerKm)} / km</td><td>${money(totals.balance)}</td></tr></tfoot></table></div>`;
+          .join(
+            "",
+          )}</tbody><tfoot><tr><td>Total do mês</td><td>${money(totals.income)}</td><td>${money(totals.expenses)}</td><td>${totals.distance.toLocaleString("pt-BR")} km</td><td>${money(totals.costPerKm)} / km</td><td>${money(totals.balance)}</td></tr></tfoot></table></div>`;
       }
 
       function loadDay(date) {
@@ -1872,7 +1957,9 @@
         });
       });
       document
-        .querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]')
+        .querySelectorAll(
+          'input[inputmode="numeric"], input[inputmode="decimal"]',
+        )
         .forEach((input) => {
           let advanceTimer;
           input.addEventListener("input", () => {
@@ -1986,49 +2073,57 @@
       const fillSavedConfig = () => {
         const saved = localStorage.getItem(firebaseConfigKey);
         if (saved && !document.getElementById("firebase-config-input").value) {
-          document.getElementById("firebase-config-input").value = JSON.stringify(
-            JSON.parse(saved),
-            null,
-            2,
-          );
+          document.getElementById("firebase-config-input").value =
+            JSON.stringify(JSON.parse(saved), null, 2);
         }
       };
-      document.getElementById("sync-button").addEventListener("click", async () => {
-        if (cloudUser) {
-          await firebase.auth().signOut();
-          setSyncStatus("saiu da conta. os dados locais continuam aqui", false);
-          return;
-        }
-        fillSavedConfig();
-        document.getElementById("sync-modal").classList.add("open");
-      });
+      document
+        .getElementById("sync-button")
+        .addEventListener("click", async () => {
+          if (cloudUser) {
+            await firebase.auth().signOut();
+            setSyncStatus(
+              "saiu da conta. os dados locais continuam aqui",
+              false,
+            );
+            return;
+          }
+          fillSavedConfig();
+          document.getElementById("sync-modal").classList.add("open");
+        });
       document.getElementById("close-sync").addEventListener("click", () => {
         document.getElementById("sync-modal").classList.remove("open");
       });
-      document.getElementById("sync-modal").addEventListener("click", (event) => {
-        if (event.target.id === "sync-modal")
-          event.currentTarget.classList.remove("open");
-      });
-      document.getElementById("save-firebase-config").addEventListener("click", () => {
-        const config = parseFirebaseConfig(
-          document.getElementById("firebase-config-input").value,
-        );
-        if (!config) {
-          document.getElementById("sync-error").textContent =
-            "Cole o objeto firebaseConfig completo.";
-          return;
-        }
-        localStorage.setItem(firebaseConfigKey, JSON.stringify(config));
-        if (typeof firebase !== "undefined" && firebase.apps.length) {
-          location.reload();
-          return;
-        }
-        firebaseReady = false;
-        document.getElementById("sync-error").textContent = "";
-        setSyncStatus("configuração guardada. entre com o Google", false);
-        watchAuth();
-      });
-      document.getElementById("google-signin").addEventListener("click", connectGoogle);
+      document
+        .getElementById("sync-modal")
+        .addEventListener("click", (event) => {
+          if (event.target.id === "sync-modal")
+            event.currentTarget.classList.remove("open");
+        });
+      document
+        .getElementById("save-firebase-config")
+        .addEventListener("click", () => {
+          const config = parseFirebaseConfig(
+            document.getElementById("firebase-config-input").value,
+          );
+          if (!config) {
+            document.getElementById("sync-error").textContent =
+              "Cole o objeto firebaseConfig completo.";
+            return;
+          }
+          localStorage.setItem(firebaseConfigKey, JSON.stringify(config));
+          if (typeof firebase !== "undefined" && firebase.apps.length) {
+            location.reload();
+            return;
+          }
+          firebaseReady = false;
+          document.getElementById("sync-error").textContent = "";
+          setSyncStatus("configuração guardada. entre com o Google", false);
+          watchAuth();
+        });
+      document
+        .getElementById("google-signin")
+        .addEventListener("click", connectGoogle);
       watchAuth();
       loadDay(selectedDate);
     </script>
