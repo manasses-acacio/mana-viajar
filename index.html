@@ -587,6 +587,10 @@
       .trip-card input::placeholder {
         color: #80979d;
       }
+      .trip-card #start-km::placeholder {
+        color: #fff;
+        opacity: 1;
+      }
       .trip-card input:focus {
         border-color: var(--yellow);
         box-shadow: 0 0 0 3px rgba(245, 200, 91, 0.15);
@@ -1272,6 +1276,7 @@
       let cloudUnsub = null;
       let cloudSaveTimer = null;
       let applyingRemote = false;
+      let suggestedStartKm = null;
       const money = (value) =>
         value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
       const parseCurrency = (value) => {
@@ -1517,17 +1522,13 @@
       function setHistory(history) {
         localStorage.setItem(storageKey, JSON.stringify(history));
       }
-      function latestRecordedEndKm(excludeDate) {
-        return Object.entries(getHistory())
-          .filter(([date, day]) => {
-            const endKm = Number(day.trip?.end);
-            return date !== excludeDate && Number.isFinite(endKm) && endKm > 0;
-          })
-          .sort(
-            ([dateA, dayA], [dateB, dayB]) =>
-              (dayB.updatedAt || 0) - (dayA.updatedAt || 0) ||
-              dateB.localeCompare(dateA),
-          )[0]?.[1].trip.end;
+      function previousDayEndKm(date) {
+        const [year, month, day] = date.split("-").map(Number);
+        const previousDate = new Date(
+          Date.UTC(year, month - 1, day - 1),
+        ).toISOString().slice(0, 10);
+        const endKm = Number(getHistory()[previousDate]?.trip?.end);
+        return Number.isFinite(endKm) && endKm > 0 ? endKm : null;
       }
       function ensureDatabaseURL(config) {
         if (config && !config.databaseURL && config.projectId) {
@@ -1852,9 +1853,9 @@
         };
         document.getElementById("date-picker").value = date;
         document.getElementById("start-km").value = state.trip.start || "";
-        const previousEndKm = latestRecordedEndKm(date);
-        document.getElementById("start-km").placeholder = previousEndKm
-          ? `Sugestão: ${previousEndKm}`
+        suggestedStartKm = previousDayEndKm(date);
+        document.getElementById("start-km").placeholder = suggestedStartKm
+          ? String(suggestedStartKm)
           : "Ex.: 12500";
         document.getElementById("end-km").value = state.trip.end || "";
         document.getElementById("fuel-price").value = state.trip.fuelPrice
@@ -2035,6 +2036,15 @@
           saveDay();
           render();
         });
+      document.getElementById("end-km").addEventListener("click", () => {
+        const startKmInput = document.getElementById("start-km");
+        if (!suggestedStartKm || startKmInput.value.trim()) return;
+        startKmInput.value = String(suggestedStartKm);
+        suggestedStartKm = null;
+        syncFormState("trip-form");
+        saveDay();
+        render();
+      });
       document.getElementById("clear-trip").addEventListener("click", () => {
         document.getElementById("trip-form").reset();
         state.trip = {
