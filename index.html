@@ -1517,6 +1517,18 @@
       function setHistory(history) {
         localStorage.setItem(storageKey, JSON.stringify(history));
       }
+      function latestRecordedEndKm(excludeDate) {
+        return Object.entries(getHistory())
+          .filter(([date, day]) => {
+            const endKm = Number(day.trip?.end);
+            return date !== excludeDate && Number.isFinite(endKm) && endKm > 0;
+          })
+          .sort(
+            ([dateA, dayA], [dateB, dayB]) =>
+              (dayB.updatedAt || 0) - (dayA.updatedAt || 0) ||
+              dateB.localeCompare(dateA),
+          )[0]?.[1].trip.end;
+      }
       function ensureDatabaseURL(config) {
         if (config && !config.databaseURL && config.projectId) {
           config.databaseURL = `https://${config.projectId}-default-rtdb.firebaseio.com`;
@@ -1840,6 +1852,10 @@
         };
         document.getElementById("date-picker").value = date;
         document.getElementById("start-km").value = state.trip.start || "";
+        const previousEndKm = latestRecordedEndKm(date);
+        document.getElementById("start-km").placeholder = previousEndKm
+          ? `Sugestão: ${previousEndKm}`
+          : "Ex.: 12500";
         document.getElementById("end-km").value = state.trip.end || "";
         document.getElementById("fuel-price").value = state.trip.fuelPrice
           ? moneyInput(state.trip.fuelPrice)
