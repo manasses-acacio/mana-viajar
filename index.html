@@ -287,7 +287,7 @@
       }
       .summary {
         display: grid;
-        grid-template-columns: 1.3fr 1fr 1fr 1fr;
+        grid-template-columns: 1.3fr repeat(4, 1fr);
         gap: 14px;
         margin-bottom: 26px;
       }
@@ -586,10 +586,6 @@
       }
       .trip-card input::placeholder {
         color: #80979d;
-      }
-      .trip-card #start-km::placeholder {
-        color: #fff;
-        opacity: 1;
       }
       .trip-card input:focus {
         border-color: var(--yellow);
@@ -956,7 +952,19 @@
             <span class="metric-icon" style="color: var(--yellow)">⌁</span>
           </div>
           <p class="metric-value" id="cost-km">R$ 0,00</p>
-          <p class="metric-note" id="distance-note">0 km percorridos</p>
+          <p class="metric-note" id="distance-note">
+            baseado no consumo médio de 8 km/L
+          </p>
+        </div>
+        <div class="metric">
+          <div class="metric-label">
+            Custo fixo comercial
+            <span class="metric-icon" style="color: var(--yellow)">⌁</span>
+          </div>
+          <p class="metric-value" id="fixed-cost-total">R$ 0,00</p>
+          <p class="metric-note" id="fixed-cost-note">
+            R$ 0,6375 × 0 km
+          </p>
         </div>
       </section>
 
@@ -1503,6 +1511,25 @@
         const fuelTotal = liters * fuelPrice;
         return { liters, fuelPrice, fuelTotal };
       };
+      function calculateFixedCost(kilometers) {
+        const costPerKm = (0.22 + 0.07 + 0.07 + 0.15) * 1.25;
+        return costPerKm * Math.max(0, Number(kilometers) || 0);
+      }
+      function calculateRecordedExpenses(day) {
+        const itemizedExpenses = (day.expenses || []).reduce(
+          (sum, item) => sum + (Number(item.value) || 0),
+          0,
+        );
+        const refuelingAmount = Number(day.trip?.fuelTotal) || 0;
+        return itemizedExpenses + refuelingAmount;
+      }
+      const moneyPerKm = (value) =>
+        value.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          minimumFractionDigits: 4,
+          maximumFractionDigits: 4,
+        });
       const escapeHtml = (text) =>
         String(text).replace(
           /[&<>'"]/g,
@@ -1799,18 +1826,13 @@
             (sum, item) => sum + item.value,
             0,
           );
-          const expenseTotal = (day.expenses || []).reduce(
-            (sum, item) => sum + item.value,
-            0,
-          );
           const distance = Math.max(
             0,
             (day.trip?.end || 0) - (day.trip?.start || 0),
           );
-          const fuelCost = calculateFuel(day.trip || {}, distance).fuelTotal;
-          const refuelingTotal = day.trip?.fuelTotal || 0;
-          const totalCost = expenseTotal + refuelingTotal;
-          const costPerKm = distance ? fuelCost / distance : 0;
+          const totalCost = calculateRecordedExpenses(day);
+          const fuel = calculateFuel(day.trip || {}, distance);
+          const costPerKm = fuel.fuelPrice / 8;
           return { date, incomeTotal, totalCost, distance, costPerKm };
         };
         const rows = days.map(buildRowData);
@@ -1819,19 +1841,22 @@
             income: t.income + r.incomeTotal,
             expenses: t.expenses + r.totalCost,
             distance: t.distance + r.distance,
-            costPerKm: t.costPerKm + r.costPerKm,
+            costPerKm: t.costPerKm + r.costPerKm * r.distance,
             balance: t.balance + r.incomeTotal - r.totalCost,
           }),
           { income: 0, expenses: 0, distance: 0, costPerKm: 0, balance: 0 },
         );
+        const averageCostPerKm = totals.distance
+          ? totals.costPerKm / totals.distance
+          : 0;
         historyList.innerHTML = `<div class="table-wrap"><table class="history-table"><thead><tr><th>Data</th><th>Ganhos</th><th>Despesas</th><th>Distância</th><th>Custo/km</th><th>Saldo</th></tr></thead><tbody>${rows
           .map(
             ({ date, incomeTotal, totalCost, distance, costPerKm }) =>
-              `<tr><td><button class="history-date" data-history-date="${date}" type="button">${new Intl.DateTimeFormat("pt-BR").format(new Date(`${date}T12:00:00`))}</button></td><td>${money(incomeTotal)}</td><td>${money(totalCost)}</td><td>${distance.toLocaleString("pt-BR")} km</td><td>${money(costPerKm)} / km</td><td>${money(incomeTotal - totalCost)}</td></tr>`,
+              `<tr><td><button class="history-date" data-history-date="${date}" type="button">${new Intl.DateTimeFormat("pt-BR").format(new Date(`${date}T12:00:00`))}</button></td><td>${money(incomeTotal)}</td><td>${money(totalCost)}</td><td>${distance.toLocaleString("pt-BR")} km</td><td>${moneyPerKm(costPerKm)} / km</td><td>${money(incomeTotal - totalCost)}</td></tr>`,
           )
           .join(
             "",
-          )}</tbody><tfoot><tr><td>Total do mês</td><td>${money(totals.income)}</td><td>${money(totals.expenses)}</td><td>${totals.distance.toLocaleString("pt-BR")} km</td><td>${money(totals.costPerKm)} / km</td><td>${money(totals.balance)}</td></tr></tfoot></table></div>`;
+          )}</tbody><tfoot><tr><td>Total do mês</td><td>${money(totals.income)}</td><td>${money(totals.expenses)}</td><td>${totals.distance.toLocaleString("pt-BR")} km</td><td>${moneyPerKm(averageCostPerKm)} / km</td><td>${money(totals.balance)}</td></tr></tfoot></table></div>`;
       }
 
       function loadDay(date) {
@@ -1886,30 +1911,31 @@
           (sum, item) => sum + item.value,
           0,
         );
-        const expenseTotal = state.expenses.reduce(
-          (sum, item) => sum + item.value,
-          0,
-        );
         const distance = Math.max(0, state.trip.end - state.trip.start);
         const fuel = calculateFuel(state.trip, distance);
         const litersSpent = distance / 8;
         const fuelCost = fuel.fuelTotal;
-        const refuelingTotal = state.trip.fuelTotal || 0;
-        const totalCost = expenseTotal + refuelingTotal;
-        const costPerKm = distance ? fuelCost / distance : 0;
+        const totalCost = calculateRecordedExpenses(state);
         document.getElementById("income-total").textContent =
           money(incomeTotal);
         document.getElementById("expense-total").textContent = money(totalCost);
         document.getElementById("balance").textContent = money(
           incomeTotal - totalCost,
         );
-        document.getElementById("cost-km").textContent = money(costPerKm);
+        const fuelCostPerKm = fuel.fuelPrice / 8;
+        document.getElementById("cost-km").textContent =
+          moneyPerKm(fuelCostPerKm);
         document.getElementById("income-count").textContent =
           `${state.incomes.length} ${state.incomes.length === 1 ? "fonte registrada" : "fontes registradas"}`;
         document.getElementById("expense-count").textContent =
           `${state.expenses.length} ${state.expenses.length === 1 ? "despesa registrada" : "despesas registradas"}`;
         document.getElementById("distance-note").textContent =
-          `${distance.toLocaleString("pt-BR")} km percorridos`;
+          "baseado no consumo médio de 8 km/L";
+        document.getElementById("fixed-cost-total").textContent = money(
+          calculateFixedCost(distance),
+        );
+        document.getElementById("fixed-cost-note").textContent =
+          `${moneyPerKm(0.6375)} × ${distance.toLocaleString("pt-BR")} km`;
         document.getElementById("chart-total").textContent = money(incomeTotal);
         document.getElementById("trip-distance").textContent =
           `${distance.toLocaleString("pt-BR")} km`;
@@ -1917,7 +1943,7 @@
           `${litersSpent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} L`;
         document.getElementById("fuel-cost").textContent = money(fuelCost);
         document.getElementById("trip-cost-km").textContent =
-          `${money(costPerKm)} / km`;
+          `${moneyPerKm(fuelCostPerKm)} / km`;
         document.getElementById("fuel-price").value = fuel.fuelPrice
           ? moneyInput(fuel.fuelPrice)
           : "";
