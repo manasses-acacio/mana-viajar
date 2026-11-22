@@ -278,6 +278,14 @@
         color: var(--teal);
         font-weight: 800;
       }
+      .history-weekday {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
       .save-status {
         display: block;
         margin-top: 4px;
@@ -1523,6 +1531,40 @@
         const refuelingAmount = Number(day.trip?.fuelTotal) || 0;
         return itemizedExpenses + refuelingAmount;
       }
+      function calculateExpenseBreakdown(day) {
+        const fuelFromForm = Number(day.trip?.fuelTotal) || 0;
+        let fuel = fuelFromForm;
+        let maintenance = 0;
+        let other = 0;
+
+        (day.expenses || []).forEach((item) => {
+          const value = Number(item.value) || 0;
+          const category = String(item.category || "").toLocaleLowerCase("pt-BR");
+
+          if (
+            category.includes("combustível") ||
+            category.includes("combustivel")
+          ) {
+            fuel += value;
+          } else if (
+            category.includes("manutenção") ||
+            category.includes("manutencao") ||
+            category.includes("peças") ||
+            category.includes("pecas")
+          ) {
+            maintenance += value;
+          } else {
+            other += value;
+          }
+        });
+
+        return {
+          fuel,
+          maintenance,
+          other,
+          total: fuel + maintenance + other,
+        };
+      }
       const moneyPerKm = (value) =>
         value.toLocaleString("pt-BR", {
           style: "currency",
@@ -1830,33 +1872,73 @@
             0,
             (day.trip?.end || 0) - (day.trip?.start || 0),
           );
-          const totalCost = calculateRecordedExpenses(day);
+          const expenseBreakdown = calculateExpenseBreakdown(day);
+          const totalCost = expenseBreakdown.total;
           const fuel = calculateFuel(day.trip || {}, distance);
           const costPerKm = fuel.fuelPrice / 8;
-          return { date, incomeTotal, totalCost, distance, costPerKm };
+          return {
+            date,
+            incomeTotal,
+            expenseBreakdown,
+            totalCost,
+            distance,
+            costPerKm,
+          };
         };
         const rows = days.map(buildRowData);
         const totals = rows.reduce(
           (t, r) => ({
             income: t.income + r.incomeTotal,
             expenses: t.expenses + r.totalCost,
+            fuel: t.fuel + r.expenseBreakdown.fuel,
+            maintenance:
+              t.maintenance + r.expenseBreakdown.maintenance,
+            other: t.other + r.expenseBreakdown.other,
             distance: t.distance + r.distance,
             costPerKm: t.costPerKm + r.costPerKm * r.distance,
             balance: t.balance + r.incomeTotal - r.totalCost,
           }),
-          { income: 0, expenses: 0, distance: 0, costPerKm: 0, balance: 0 },
+          {
+            income: 0,
+            expenses: 0,
+            fuel: 0,
+            maintenance: 0,
+            other: 0,
+            distance: 0,
+            costPerKm: 0,
+            balance: 0,
+          },
         );
         const averageCostPerKm = totals.distance
           ? totals.costPerKm / totals.distance
           : 0;
-        historyList.innerHTML = `<div class="table-wrap"><table class="history-table"><thead><tr><th>Data</th><th>Ganhos</th><th>Despesas</th><th>Distância</th><th>Custo/km</th><th>Saldo</th></tr></thead><tbody>${rows
+        const weekdays = [
+          "domingo",
+          "segunda-feira",
+          "terça-feira",
+          "quarta-feira",
+          "quinta-feira",
+          "sexta-feira",
+          "sábado",
+        ];
+        historyList.innerHTML = `<div class="table-wrap"><table class="history-table"><thead><tr><th>Data</th><th>Ganhos</th><th>Combustível</th><th>Manutenção</th><th>Outras despesas</th><th>Total despesas</th><th>Distância</th><th>Custo/km</th><th>Saldo</th></tr></thead><tbody>${rows
           .map(
-            ({ date, incomeTotal, totalCost, distance, costPerKm }) =>
-              `<tr><td><button class="history-date" data-history-date="${date}" type="button">${new Intl.DateTimeFormat("pt-BR").format(new Date(`${date}T12:00:00`))}</button></td><td>${money(incomeTotal)}</td><td>${money(totalCost)}</td><td>${distance.toLocaleString("pt-BR")} km</td><td>${moneyPerKm(costPerKm)} / km</td><td>${money(incomeTotal - totalCost)}</td></tr>`,
+            ({
+              date,
+              incomeTotal,
+              expenseBreakdown,
+              totalCost,
+              distance,
+              costPerKm,
+            }) => {
+              const recordDate = new Date(`${date}T12:00:00`);
+              const weekday = weekdays[recordDate.getDay()];
+              return `<tr><td><span class="history-weekday">${weekday}</span><button class="history-date" data-history-date="${date}" type="button">${new Intl.DateTimeFormat("pt-BR").format(recordDate)}</button></td><td>${money(incomeTotal)}</td><td>${money(expenseBreakdown.fuel)}</td><td>${money(expenseBreakdown.maintenance)}</td><td>${money(expenseBreakdown.other)}</td><td>${money(totalCost)}</td><td>${distance.toLocaleString("pt-BR")} km</td><td>${moneyPerKm(costPerKm)} / km</td><td>${money(incomeTotal - totalCost)}</td></tr>`;
+            },
           )
           .join(
             "",
-          )}</tbody><tfoot><tr><td>Total do mês</td><td>${money(totals.income)}</td><td>${money(totals.expenses)}</td><td>${totals.distance.toLocaleString("pt-BR")} km</td><td>${moneyPerKm(averageCostPerKm)} / km</td><td>${money(totals.balance)}</td></tr></tfoot></table></div>`;
+          )}</tbody><tfoot><tr><td>Total do mês</td><td>${money(totals.income)}</td><td>${money(totals.fuel)}</td><td>${money(totals.maintenance)}</td><td>${money(totals.other)}</td><td>${money(totals.expenses)}</td><td>${totals.distance.toLocaleString("pt-BR")} km</td><td>${moneyPerKm(averageCostPerKm)} / km</td><td>${money(totals.balance)}</td></tr></tfoot></table></div>`;
       }
 
       function loadDay(date) {
