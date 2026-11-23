@@ -634,45 +634,71 @@
       .result.full strong {
         color: var(--yellow);
       }
-      .trend {
-        display: flex;
-        align-items: flex-end;
-        gap: 8px;
-        height: 118px;
-        padding: 12px 0 0;
+      .earnings-chart-card .card-body {
+        padding-top: 8px;
       }
-      .bar {
-        display: flex;
-        flex: 1;
-        align-items: center;
-        flex-direction: column;
-        gap: 7px;
-        height: 100%;
-        justify-content: flex-end;
-      }
-      .bar span {
-        width: 100%;
-        max-width: 30px;
-        border-radius: 5px 5px 2px 2px;
-        background: #b8ddd0;
-      }
-      .bar.active span {
-        background: var(--coral);
-      }
-      .bar small {
-        color: var(--muted);
-        font-family: "DM Mono", monospace;
-        font-size: 9px;
-      }
-      .legend {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 15px;
+      .earnings-chart-note {
+        margin: 0 0 8px;
         color: var(--muted);
         font-size: 11px;
       }
-      .legend b {
-        color: var(--teal);
+      .earnings-chart {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .earnings-chart-frame {
+        overflow: hidden;
+        border-radius: 10px;
+        background: #1d1d1d;
+      }
+      .earnings-chart .chart-grid {
+        stroke: #575757;
+        stroke-width: 1;
+        stroke-dasharray: 4 5;
+      }
+      .earnings-chart .chart-axis-label {
+        fill: #b7b7b7;
+        font-family: Manrope, sans-serif;
+        font-size: 10px;
+      }
+      .chart-value {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px 0;
+        color: #f0f0f0;
+        font-family: Manrope, sans-serif;
+      }
+      .chart-value-label {
+        color: #b7b7b7;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .chart-value strong {
+        font-size: 17px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .earnings-chart .chart-bar {
+        cursor: pointer;
+        opacity: 0.94;
+      }
+      .earnings-chart .chart-bar.selected {
+        opacity: 1;
+        stroke: #fff;
+        stroke-width: 1;
+      }
+      .earnings-chart .chart-bar:hover,
+      .earnings-chart .chart-bar:focus-visible {
+        stroke: #fff;
+        stroke-width: 2;
+        outline: none;
+      }
+      .earnings-chart .chart-baseline {
+        stroke: #777;
+        stroke-width: 1;
       }
       .tip {
         display: flex;
@@ -1138,34 +1164,28 @@
         </div>
 
         <aside class="side-column">
-          <article class="card">
+          <article class="card earnings-chart-card">
             <div class="card-head">
               <div>
-                <h2>Visão dos ganhos</h2>
-                <p>Distribuição por fonte registrada.</p>
+                <h2>Ganhos diários</h2>
+                <p id="daily-chart-period">Por dia no mês selecionado.</p>
               </div>
             </div>
             <div class="card-body">
-              <div class="trend" id="income-chart">
-                <div class="bar" style="height: 22%">
-                  <span></span><small>—</small>
-                </div>
-                <div class="bar" style="height: 45%">
-                  <span></span><small>—</small>
-                </div>
-                <div class="bar" style="height: 67%">
-                  <span></span><small>—</small>
-                </div>
-                <div class="bar" style="height: 36%">
-                  <span></span><small>—</small>
-                </div>
-                <div class="bar" style="height: 86%">
-                  <span></span><small>—</small>
-                </div>
+              <p class="earnings-chart-note">Valores em reais</p>
+              <div id="daily-income-chart"></div>
+            </div>
+          </article>
+          <article class="card earnings-chart-card">
+            <div class="card-head">
+              <div>
+                <h2>Ganhos mensais</h2>
+                <p id="monthly-chart-period">Total por mês no ano selecionado.</p>
               </div>
-              <div class="legend">
-                <span>fontes de renda</span><b id="chart-total">R$ 0,00</b>
-              </div>
+            </div>
+            <div class="card-body">
+              <p class="earnings-chart-note">Valores em reais</p>
+              <div id="monthly-income-chart"></div>
             </div>
           </article>
           <div class="tip">
@@ -1293,6 +1313,8 @@
       let cloudSaveTimer = null;
       let applyingRemote = false;
       let suggestedStartKm = null;
+      let selectedDailyChartIndex = null;
+      let selectedMonthlyChartIndex = null;
       const money = (value) =>
         value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
       const parseCurrency = (value) => {
@@ -1584,6 +1606,189 @@
               '"': "&quot;",
             })[char],
         );
+
+      function getIncomeTotal(day) {
+        return (day.incomes || []).reduce(
+          (sum, item) => sum + (Number(item.value) || 0),
+          0,
+        );
+      }
+      function renderIncomeChart(
+        containerId,
+        points,
+        color,
+        label,
+        selectedIndex,
+        gridStep,
+      ) {
+        const container = document.getElementById(containerId);
+        const chartKind =
+          containerId === "daily-income-chart" ? "daily" : "monthly";
+        const plot = { left: 54, right: 350, top: 40, bottom: 148 };
+        const maxValue = Math.max(gridStep, ...points.map((point) => point.value));
+        const scaleMax = Math.ceil(maxValue / gridStep) * gridStep;
+        const slotWidth = (plot.right - plot.left) / points.length;
+        const barWidth = Math.min(34, slotWidth * 0.62);
+        const valueY = (value) =>
+          plot.bottom - (value / scaleMax) * (plot.bottom - plot.top);
+        const gridLines = [];
+
+        for (let value = 0; value <= scaleMax; value += gridStep) {
+          const y = valueY(value);
+          gridLines.push(
+            `<line class="chart-grid" x1="${plot.left}" y1="${y}" x2="${plot.right}" y2="${y}"></line><text class="chart-axis-label" x="${plot.left - 7}" y="${y + 3}" text-anchor="end">${value.toLocaleString("pt-BR")}</text>`,
+          );
+        }
+
+        const bars = points
+          .map(
+            (point, index) => {
+              const centerX = plot.left + slotWidth * (index + 0.5);
+              const y = valueY(point.value);
+              const barY = Math.min(y, plot.bottom - 1);
+              const barHeight = Math.max(1, plot.bottom - y);
+              const selectedClass =
+                index === selectedIndex ? " selected" : "";
+              const firstLabel = escapeHtml(point.label);
+              const description = point.description || point.label;
+              const exactPointValue = point.value.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+              const secondLabel = point.detail
+                ? `<text class="chart-axis-label" x="${centerX}" y="${plot.bottom + 34}" text-anchor="middle">${escapeHtml(point.detail)}</text>`
+                : "";
+              return `<rect class="chart-bar${selectedClass}" x="${centerX - barWidth / 2}" y="${barY}" width="${barWidth}" height="${barHeight}" fill="${color}" data-chart-kind="${chartKind}" data-chart-index="${index}" role="button" tabindex="0" aria-pressed="${index === selectedIndex}" aria-label="${escapeHtml(description)}: ${exactPointValue}"><title>${escapeHtml(description)}: ${exactPointValue}</title></rect><text class="chart-axis-label" x="${centerX}" y="${plot.bottom + 17}" text-anchor="middle">${firstLabel}</text>${secondLabel}`;
+            },
+          )
+          .join("");
+        const selectedPoint = points[selectedIndex] || points[0];
+        const selectedValue = selectedPoint?.value || 0;
+        const selectedY = valueY(selectedValue);
+        const selectedGuide =
+          selectedValue > 0
+            ? `<line class="chart-grid" x1="${plot.left}" y1="${selectedY}" x2="${plot.right}" y2="${selectedY}" stroke-dasharray="5 5"></line>`
+            : "";
+        const exactValue = selectedValue.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        container.innerHTML = `<div class="earnings-chart-frame"><div class="chart-value"><span class="chart-value-label">${escapeHtml(selectedPoint?.description || "")}</span><strong>${exactValue}</strong></div><svg class="earnings-chart" viewBox="0 0 360 200" role="img" aria-label="${escapeHtml(label)}"><g>${gridLines.join("")}${selectedGuide}<line class="chart-baseline" x1="${plot.left}" y1="${plot.bottom}" x2="${plot.right}" y2="${plot.bottom}"></line></g>${bars}</svg></div>`;
+      }
+      function renderEarningsCharts() {
+        const history = getHistory();
+        const [yearText, monthText] = selectedDate.split("-");
+        const year = Number(yearText);
+        const month = Number(monthText);
+        const selectedDay = Number(selectedDate.substring(8, 10));
+        const selectedDateObject = new Date(year, month - 1, selectedDay, 12);
+        const weekStart = new Date(selectedDateObject);
+        weekStart.setDate(
+          selectedDateObject.getDate() -
+            ((selectedDateObject.getDay() + 6) % 7),
+        );
+        const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+        const monthNames = [
+          "jan",
+          "fev",
+          "mar",
+          "abr",
+          "mai",
+          "jun",
+          "jul",
+          "ago",
+          "set",
+          "out",
+          "nov",
+          "dez",
+        ];
+        const dailyPoints = Array.from({ length: 7 }, (_, index) => {
+          const dateObject = new Date(weekStart);
+          dateObject.setDate(weekStart.getDate() + index);
+          const date = [
+            dateObject.getFullYear(),
+            String(dateObject.getMonth() + 1).padStart(2, "0"),
+            String(dateObject.getDate()).padStart(2, "0"),
+          ].join("-");
+          return {
+            label: String(dateObject.getDate()),
+            detail: weekDays[index],
+            description: `${String(dateObject.getDate()).padStart(2, "0")}/${String(dateObject.getMonth() + 1).padStart(2, "0")} · ${weekDays[index]}`,
+            value: getIncomeTotal(history[date] || {}),
+          };
+        });
+        const monthlyTotals = Array(12).fill(0);
+
+        Object.entries(history).forEach(([date, day]) => {
+          if (date.substring(0, 4) !== yearText) return;
+          const monthIndex = Number(date.substring(5, 7)) - 1;
+          if (monthIndex >= 0 && monthIndex < 12) {
+            monthlyTotals[monthIndex] += getIncomeTotal(day);
+          }
+        });
+
+        const monthTitle = new Intl.DateTimeFormat("pt-BR", {
+          month: "long",
+          year: "numeric",
+        }).format(new Date(year, month - 1, 1));
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const weekRange = `${String(weekStart.getDate()).padStart(2, "0")}/${String(weekStart.getMonth() + 1).padStart(2, "0")}–${String(weekEnd.getDate()).padStart(2, "0")}/${String(weekEnd.getMonth() + 1).padStart(2, "0")}`;
+        const weekSelectedIndex = Math.floor(
+          (selectedDateObject.getTime() - weekStart.getTime()) /
+            (24 * 60 * 60 * 1000),
+        );
+        const monthlySelectedIndex = month - 1;
+        document.getElementById("daily-chart-period").textContent =
+          `Ganhos de segunda a domingo · ${weekRange}.`;
+        document.getElementById("monthly-chart-period").textContent =
+          `Total por mês em ${year}.`;
+        renderIncomeChart(
+          "daily-income-chart",
+          dailyPoints,
+          "#5f8ee1",
+          `Ganhos diários na semana de ${weekRange}`,
+          selectedDailyChartIndex ?? weekSelectedIndex,
+          100,
+        );
+        renderIncomeChart(
+          "monthly-income-chart",
+          monthlyTotals.map((value, index) => ({
+            label: monthNames[index],
+            description: new Intl.DateTimeFormat("pt-BR", {
+              month: "long",
+              year: "numeric",
+            }).format(new Date(year, index, 1)),
+            value,
+          })),
+          "#4caf50",
+          `Ganhos mensais em ${year}`,
+          selectedMonthlyChartIndex ?? monthlySelectedIndex,
+          1000,
+        );
+      }
+      function selectIncomeChartBar(bar) {
+        const index = Number(bar.dataset.chartIndex);
+        if (!Number.isInteger(index)) return;
+
+        if (bar.dataset.chartKind === "daily" && index >= 0 && index < 7) {
+          selectedDailyChartIndex = index;
+        } else if (
+          bar.dataset.chartKind === "monthly" &&
+          index >= 0 &&
+          index < 12
+        ) {
+          selectedMonthlyChartIndex = index;
+        } else {
+          return;
+        }
+
+        renderEarningsCharts();
+      }
 
       function getHistory() {
         return JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -1942,6 +2147,8 @@
       }
 
       function loadDay(date) {
+        selectedDailyChartIndex = null;
+        selectedMonthlyChartIndex = null;
         const history = getHistory();
         const saved = history[date];
         state.incomes = saved?.incomes || [];
@@ -2018,7 +2225,7 @@
         );
         document.getElementById("fixed-cost-note").textContent =
           `${moneyPerKm(0.6375)} × ${distance.toLocaleString("pt-BR")} km`;
-        document.getElementById("chart-total").textContent = money(incomeTotal);
+        renderEarningsCharts();
         document.getElementById("trip-distance").textContent =
           `${distance.toLocaleString("pt-BR")} km`;
         document.getElementById("trip-liters").textContent =
@@ -2052,19 +2259,6 @@
           .length
           ? "none"
           : "block";
-        const bars = document.querySelectorAll("#income-chart .bar");
-        const maxIncome = Math.max(
-          ...state.incomes.map((item) => item.value),
-          1,
-        );
-        bars.forEach((bar, index) => {
-          const item = state.incomes[index];
-          bar.style.height = `${item ? Math.max(18, (item.value / maxIncome) * 90) : 18}%`;
-          bar.classList.toggle("active", Boolean(item));
-          bar.querySelector("small").textContent = item
-            ? money(item.value).replace("R$ ", "")
-            : "—";
-        });
       }
 
       const moneyInput = (value) =>
@@ -2079,6 +2273,25 @@
       document.querySelectorAll(".integer-input").forEach((input) => {
         input.addEventListener("input", () => {
           input.value = input.value.replace(/\D/g, "");
+        });
+      });
+      ["daily-income-chart", "monthly-income-chart"].forEach((chartId) => {
+        const chart = document.getElementById(chartId);
+        chart.addEventListener("click", (event) => {
+          const bar = event.target.closest("[data-chart-kind]");
+          if (bar) selectIncomeChartBar(bar);
+        });
+        chart.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          const bar = event.target.closest("[data-chart-kind]");
+          if (!bar) return;
+          event.preventDefault();
+          selectIncomeChartBar(bar);
+          chart
+            .querySelector(
+              `[data-chart-kind="${bar.dataset.chartKind}"][data-chart-index="${bar.dataset.chartIndex}"]`,
+            )
+            ?.focus();
         });
       });
       document
