@@ -648,9 +648,15 @@
         height: auto;
       }
       .earnings-chart-frame {
-        overflow: hidden;
+        min-width: 0;
         border-radius: 10px;
         background: #1d1d1d;
+      }
+      .earnings-chart-scroll {
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-color: #66717a #1d1d1d;
+        scrollbar-width: thin;
       }
       .earnings-chart .chart-grid {
         stroke: #575757;
@@ -680,6 +686,28 @@
         font-size: 17px;
         font-weight: 800;
         white-space: nowrap;
+      }
+      .chart-navigation {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .chart-navigation button {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--teal);
+        background: var(--card);
+        font-size: 20px;
+        line-height: 1;
+      }
+      .chart-navigation button:hover {
+        color: #fff;
+        border-color: var(--teal);
+        background: var(--teal);
       }
       .earnings-chart .chart-bar {
         cursor: pointer;
@@ -1170,6 +1198,10 @@
                 <h2>Ganhos diários</h2>
                 <p id="daily-chart-period">Por dia no mês selecionado.</p>
               </div>
+              <div class="chart-navigation" aria-label="Navegar pelos meses">
+                <button id="daily-chart-previous" type="button" aria-label="Mês anterior">‹</button>
+                <button id="daily-chart-next" type="button" aria-label="Próximo mês">›</button>
+              </div>
             </div>
             <div class="card-body">
               <p class="earnings-chart-note">Valores em reais</p>
@@ -1181,6 +1213,10 @@
               <div>
                 <h2>Ganhos mensais</h2>
                 <p id="monthly-chart-period">Total por mês no ano selecionado.</p>
+              </div>
+              <div class="chart-navigation" aria-label="Navegar pelos anos">
+                <button id="monthly-chart-previous" type="button" aria-label="Ano anterior">‹</button>
+                <button id="monthly-chart-next" type="button" aria-label="Próximo ano">›</button>
               </div>
             </div>
             <div class="card-body">
@@ -1313,8 +1349,9 @@
       let cloudSaveTimer = null;
       let applyingRemote = false;
       let suggestedStartKm = null;
-      let selectedDailyChartIndex = null;
       let selectedMonthlyChartIndex = null;
+      let dailyChartDate = null;
+      let monthlyChartYear = null;
       const money = (value) =>
         value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
       const parseCurrency = (value) => {
@@ -1624,7 +1661,18 @@
         const container = document.getElementById(containerId);
         const chartKind =
           containerId === "daily-income-chart" ? "daily" : "monthly";
-        const plot = { left: 54, right: 350, top: 40, bottom: 148 };
+        const scrollable = chartKind === "daily";
+        const chartWidth = scrollable
+          ? Math.max(360, 54 + points.length * 38 + 14)
+          : 360;
+        const previousScrollLeft =
+          container.querySelector(".earnings-chart-scroll")?.scrollLeft || 0;
+        const plot = {
+          left: 54,
+          right: chartWidth - 10,
+          top: 40,
+          bottom: 148,
+        };
         const maxValue = Math.max(gridStep, ...points.map((point) => point.value));
         const scaleMax = Math.ceil(maxValue / gridStep) * gridStep;
         const slotWidth = (plot.right - plot.left) / points.length;
@@ -1660,7 +1708,10 @@
               const secondLabel = point.detail
                 ? `<text class="chart-axis-label" x="${centerX}" y="${plot.bottom + 34}" text-anchor="middle">${escapeHtml(point.detail)}</text>`
                 : "";
-              return `<rect class="chart-bar${selectedClass}" x="${centerX - barWidth / 2}" y="${barY}" width="${barWidth}" height="${barHeight}" fill="${color}" data-chart-kind="${chartKind}" data-chart-index="${index}" role="button" tabindex="0" aria-pressed="${index === selectedIndex}" aria-label="${escapeHtml(description)}: ${exactPointValue}"><title>${escapeHtml(description)}: ${exactPointValue}</title></rect><text class="chart-axis-label" x="${centerX}" y="${plot.bottom + 17}" text-anchor="middle">${firstLabel}</text>${secondLabel}`;
+              const chartDate = point.date
+                ? ` data-chart-date="${escapeHtml(point.date)}"`
+                : "";
+              return `<rect class="chart-bar${selectedClass}" x="${centerX - barWidth / 2}" y="${barY}" width="${barWidth}" height="${barHeight}" fill="${color}" data-chart-kind="${chartKind}" data-chart-index="${index}"${chartDate} role="button" tabindex="0" aria-pressed="${index === selectedIndex}" aria-label="${escapeHtml(description)}: ${exactPointValue}"><title>${escapeHtml(description)}: ${exactPointValue}</title></rect><text class="chart-axis-label" x="${centerX}" y="${plot.bottom + 17}" text-anchor="middle">${firstLabel}</text>${secondLabel}`;
             },
           )
           .join("");
@@ -1677,21 +1728,32 @@
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         });
-        container.innerHTML = `<div class="earnings-chart-frame"><div class="chart-value"><span class="chart-value-label">${escapeHtml(selectedPoint?.description || "")}</span><strong>${exactValue}</strong></div><svg class="earnings-chart" viewBox="0 0 360 200" role="img" aria-label="${escapeHtml(label)}"><g>${gridLines.join("")}${selectedGuide}<line class="chart-baseline" x1="${plot.left}" y1="${plot.bottom}" x2="${plot.right}" y2="${plot.bottom}"></line></g>${bars}</svg></div>`;
+        const svg = `<svg class="earnings-chart" viewBox="0 0 ${chartWidth} 200"${scrollable ? ` style="width:${chartWidth}px;max-width:none"` : ""} role="img" aria-label="${escapeHtml(label)}"><g>${gridLines.join("")}${selectedGuide}<line class="chart-baseline" x1="${plot.left}" y1="${plot.bottom}" x2="${plot.right}" y2="${plot.bottom}"></line></g>${bars}</svg>`;
+        const chartContent = scrollable
+          ? `<div class="earnings-chart-scroll">${svg}</div>`
+          : svg;
+        container.innerHTML = `<div class="earnings-chart-frame"><div class="chart-value"><span class="chart-value-label">${escapeHtml(selectedPoint?.description || "")}</span><strong>${exactValue}</strong></div>${chartContent}</div>`;
+        if (scrollable) {
+          const scrollArea = container.querySelector(".earnings-chart-scroll");
+          scrollArea.scrollLeft = previousScrollLeft;
+        }
       }
       function renderEarningsCharts() {
         const history = getHistory();
-        const [yearText, monthText] = selectedDate.split("-");
-        const year = Number(yearText);
+        const [selectedYearText, monthText] = selectedDate.split("-");
+        const selectedYear = Number(selectedYearText);
         const month = Number(monthText);
-        const selectedDay = Number(selectedDate.substring(8, 10));
-        const selectedDateObject = new Date(year, month - 1, selectedDay, 12);
-        const weekStart = new Date(selectedDateObject);
-        weekStart.setDate(
-          selectedDateObject.getDate() -
-            ((selectedDateObject.getDay() + 6) % 7),
-        );
-        const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+        const chartDate = dailyChartDate || selectedDate;
+        const [chartDateYear, chartDateMonth, chartDateDay] = chartDate
+          .split("-")
+          .map(Number);
+        const daysInMonth = new Date(
+          chartDateYear,
+          chartDateMonth,
+          0,
+        ).getDate();
+        const year = monthlyChartYear ?? selectedYear;
+        const yearText = String(year);
         const monthNames = [
           "jan",
           "fev",
@@ -1706,9 +1768,13 @@
           "nov",
           "dez",
         ];
-        const dailyPoints = Array.from({ length: 7 }, (_, index) => {
-          const dateObject = new Date(weekStart);
-          dateObject.setDate(weekStart.getDate() + index);
+        const dailyPoints = Array.from({ length: daysInMonth }, (_, index) => {
+          const dateObject = new Date(
+            chartDateYear,
+            chartDateMonth - 1,
+            index + 1,
+            12,
+          );
           const date = [
             dateObject.getFullYear(),
             String(dateObject.getMonth() + 1).padStart(2, "0"),
@@ -1716,8 +1782,13 @@
           ].join("-");
           return {
             label: String(dateObject.getDate()),
-            detail: weekDays[index],
-            description: `${String(dateObject.getDate()).padStart(2, "0")}/${String(dateObject.getMonth() + 1).padStart(2, "0")} · ${weekDays[index]}`,
+            detail: new Intl.DateTimeFormat("pt-BR", {
+              weekday: "short",
+            })
+              .format(dateObject)
+              .replace(".", ""),
+            date,
+            description: `${String(dateObject.getDate()).padStart(2, "0")}/${String(dateObject.getMonth() + 1).padStart(2, "0")} · ${new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(dateObject)}`,
             value: getIncomeTotal(history[date] || {}),
           };
         });
@@ -1731,28 +1802,26 @@
           }
         });
 
+        const chartMonthTitle = new Intl.DateTimeFormat("pt-BR", {
+          month: "long",
+          year: "numeric",
+        }).format(new Date(chartDateYear, chartDateMonth - 1, 1));
         const monthTitle = new Intl.DateTimeFormat("pt-BR", {
           month: "long",
           year: "numeric",
         }).format(new Date(year, month - 1, 1));
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        const weekRange = `${String(weekStart.getDate()).padStart(2, "0")}/${String(weekStart.getMonth() + 1).padStart(2, "0")}–${String(weekEnd.getDate()).padStart(2, "0")}/${String(weekEnd.getMonth() + 1).padStart(2, "0")}`;
-        const weekSelectedIndex = Math.floor(
-          (selectedDateObject.getTime() - weekStart.getTime()) /
-            (24 * 60 * 60 * 1000),
-        );
+        const dailySelectedIndex = chartDateDay - 1;
         const monthlySelectedIndex = month - 1;
-        document.getElementById("daily-chart-period").textContent =
-          `Ganhos de segunda a domingo · ${weekRange}.`;
         document.getElementById("monthly-chart-period").textContent =
           `Total por mês em ${year}.`;
+        document.getElementById("daily-chart-period").textContent =
+          `Ganhos por dia em ${chartMonthTitle}.`;
         renderIncomeChart(
           "daily-income-chart",
           dailyPoints,
           "#5f8ee1",
-          `Ganhos diários na semana de ${weekRange}`,
-          selectedDailyChartIndex ?? weekSelectedIndex,
+          `Ganhos diários em ${chartMonthTitle}`,
+          dailySelectedIndex,
           100,
         );
         renderIncomeChart(
@@ -1771,12 +1840,49 @@
           1000,
         );
       }
+      function navigateDailyChart(months) {
+        const anchorDate = new Date(`${dailyChartDate || selectedDate}T12:00:00`);
+        const targetDay = anchorDate.getDate();
+        anchorDate.setDate(1);
+        anchorDate.setMonth(anchorDate.getMonth() + months);
+        const finalDay = new Date(
+          anchorDate.getFullYear(),
+          anchorDate.getMonth() + 1,
+          0,
+        ).getDate();
+        anchorDate.setDate(Math.min(targetDay, finalDay));
+        dailyChartDate = [
+          anchorDate.getFullYear(),
+          String(anchorDate.getMonth() + 1).padStart(2, "0"),
+          String(anchorDate.getDate()).padStart(2, "0"),
+        ].join("-");
+        renderEarningsCharts();
+      }
+      function navigateMonthlyChart(years) {
+        const currentYear =
+          monthlyChartYear ?? Number(selectedDate.substring(0, 4));
+        monthlyChartYear = currentYear + years;
+        renderEarningsCharts();
+      }
       function selectIncomeChartBar(bar) {
         const index = Number(bar.dataset.chartIndex);
         if (!Number.isInteger(index)) return;
 
-        if (bar.dataset.chartKind === "daily" && index >= 0 && index < 7) {
-          selectedDailyChartIndex = index;
+        const [dailyYear, dailyMonth] = (dailyChartDate || selectedDate)
+          .split("-")
+          .map(Number);
+        const dailyDaysInMonth = new Date(
+          dailyYear,
+          dailyMonth,
+          0,
+        ).getDate();
+        if (
+          bar.dataset.chartKind === "daily" &&
+          index >= 0 &&
+          index < dailyDaysInMonth &&
+          bar.dataset.chartDate
+        ) {
+          dailyChartDate = bar.dataset.chartDate || dailyChartDate;
         } else if (
           bar.dataset.chartKind === "monthly" &&
           index >= 0 &&
@@ -2147,8 +2253,9 @@
       }
 
       function loadDay(date) {
-        selectedDailyChartIndex = null;
         selectedMonthlyChartIndex = null;
+        dailyChartDate = null;
+        monthlyChartYear = null;
         const history = getHistory();
         const saved = history[date];
         state.incomes = saved?.incomes || [];
@@ -2294,6 +2401,18 @@
             ?.focus();
         });
       });
+      document
+        .getElementById("daily-chart-previous")
+        .addEventListener("click", () => navigateDailyChart(-1));
+      document
+        .getElementById("daily-chart-next")
+        .addEventListener("click", () => navigateDailyChart(1));
+      document
+        .getElementById("monthly-chart-previous")
+        .addEventListener("click", () => navigateMonthlyChart(-1));
+      document
+        .getElementById("monthly-chart-next")
+        .addEventListener("click", () => navigateMonthlyChart(1));
       document
         .querySelectorAll(
           'input[inputmode="numeric"], input[inputmode="decimal"]',
